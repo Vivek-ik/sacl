@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
@@ -47,26 +48,87 @@ const bowlingStyles = [
 ];
 
 const teamDefinitions = [
-  { name: "Indore Warriors", ownerName: "Rahul Sharma", email: "owner1@sacl.test" },
-  { name: "Bhopal Kings", ownerName: "Amit Verma", email: "owner2@sacl.test" },
-  { name: "Ujjain Strikers", ownerName: "Rohit Patel", email: "owner3@sacl.test" },
-  { name: "Dewas Titans", ownerName: "Vikas Jain", email: "owner4@sacl.test" },
+  {
+    name: "Indore Warriors",
+    ownerName: "Rahul Sharma",
+    email: "owner1@sacl.test",
+  },
+  {
+    name: "Bhopal Kings",
+    ownerName: "Amit Verma",
+    email: "owner2@sacl.test",
+  },
+  {
+    name: "Ujjain Strikers",
+    ownerName: "Rohit Patel",
+    email: "owner3@sacl.test",
+  },
+  {
+    name: "Dewas Titans",
+    ownerName: "Vikas Jain",
+    email: "owner4@sacl.test",
+  },
 ];
 
-async function createUser({
-  name,
-  email,
-  phone,
-  role,
-}) {
+// --------------------------------------------------
+// RESET DATABASE
+// --------------------------------------------------
+
+async function resetDatabase() {
+  if (process.env.RESET_DB !== "true") {
+    throw new Error(
+      "Database reset blocked. Set RESET_DB=true to confirm."
+    );
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Database reset is disabled in production."
+    );
+  }
+
+  const databaseName = mongoose.connection.name;
+
+  if (!databaseName) {
+    throw new Error("Could not determine database name.");
+  }
+
+  if (process.env.RESET_DB_CONFIRM !== databaseName) {
+    throw new Error(
+      `Database reset blocked. To confirm, set RESET_DB_CONFIRM=${databaseName}`
+    );
+  }
+
+  console.log(`\nResetting database: ${databaseName}`);
+
+  const collections = await mongoose.connection.db.collections();
+
+  for (const collection of collections) {
+    if (collection.collectionName.startsWith("system.")) {
+      continue;
+    }
+
+    await collection.deleteMany({});
+    console.log(`Cleared: ${collection.collectionName}`);
+  }
+
+  console.log("Database reset completed.\n");
+}
+
+// --------------------------------------------------
+// CREATE / UPDATE USER
+// --------------------------------------------------
+
+async function createUser({ name, email, phone, role }) {
+  const normalizedEmail = email.toLowerCase();
   const password = await bcrypt.hash(DEFAULT_PASSWORD, 12);
 
   return User.findOneAndUpdate(
-    { email: email.toLowerCase() },
+    { email: normalizedEmail },
     {
       $set: {
         name,
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         phone,
         password,
         role,
@@ -82,12 +144,19 @@ async function createUser({
   );
 }
 
+// --------------------------------------------------
+// SEED
+// --------------------------------------------------
+
 async function seed() {
   await connectDB();
 
   console.log("Starting SACL seed...");
 
-  // 1. Admin
+  // 1. Reset existing database records.
+  await resetDatabase();
+
+  // 2. Admin
   const admin = await createUser({
     name: "SACL Admin",
     email: "admin@sacl.test",
@@ -95,7 +164,9 @@ async function seed() {
     role: "admin",
   });
 
-  // 2. Scorers
+  console.log("Admin created.");
+
+  // 3. Scorers
   const scorer1 = await createUser({
     name: "Rahul Scorer",
     email: "scorer1@sacl.test",
@@ -112,7 +183,9 @@ async function seed() {
 
   const scorers = [scorer1, scorer2];
 
-  // 3. Teams, owners and players
+  console.log("Scorers created.");
+
+  // 4. Teams, owners and players
   const teams = [];
 
   for (let t = 0; t < teamDefinitions.length; t++) {
@@ -125,24 +198,13 @@ async function seed() {
       role: "team_owner",
     });
 
-    const team = await Team.findOneAndUpdate(
-      { name: definition.name },
-      {
-        $set: {
-          name: definition.name,
-          owner: owner._id,
-          coOwnerName: `${definition.ownerName} Co-Owner`,
-          coOwnerPhone: `900000005${t}`,
-          approvalStatus: "approved",
-        },
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const team = await Team.create({
+      name: definition.name,
+      owner: owner._id,
+      coOwnerName: `${definition.ownerName} Co-Owner`,
+      coOwnerPhone: `900000005${t}`,
+      approvalStatus: "approved",
+    });
 
     const teamPlayers = [];
 
@@ -156,31 +218,20 @@ async function seed() {
         role: "player",
       });
 
-      const player = await Player.findOneAndUpdate(
-        { user: playerUser._id },
-        {
-          $set: {
-            user: playerUser._id,
-            fullName: `Player ${playerNumber}`,
-            category: categories[i],
-            role: roles[i],
-            battingStyle: battingStyles[i % 2],
-            bowlingStyle:
-              roles[i] === "BATTER"
-                ? "NONE"
-                : bowlingStyles[i % bowlingStyles.length],
-            preferredJerseyNumber: i + 1,
-            preferredTeam: team._id,
-            approvalStatus: "approved",
-          },
-        },
-        {
-          new: true,
-          upsert: true,
-          runValidators: true,
-          setDefaultsOnInsert: true,
-        }
-      );
+      const player = await Player.create({
+        user: playerUser._id,
+        fullName: `Player ${playerNumber}`,
+        category: categories[i],
+        role: roles[i],
+        battingStyle: battingStyles[i % 2],
+        bowlingStyle:
+          roles[i] === "BATTER"
+            ? "NONE"
+            : bowlingStyles[i % bowlingStyles.length],
+        preferredJerseyNumber: i + 1,
+        preferredTeam: team._id,
+        approvalStatus: "approved",
+      });
 
       teamPlayers.push(player._id);
     }
@@ -191,10 +242,12 @@ async function seed() {
       owner,
     });
 
-    console.log(`Created/updated team: ${team.name}`);
+    console.log(
+      `Created team: ${team.name} with ${teamPlayers.length} players`
+    );
   }
 
-  // 4. Scheduled matches
+  // 5. Scheduled matches
   const matchDefinitions = [
     {
       title: "SACL League - Match 1",
@@ -216,42 +269,39 @@ async function seed() {
     const teamA = teams[definition.teamIndexA];
     const teamB = teams[definition.teamIndexB];
 
-    await Match.findOneAndUpdate(
-      { title: definition.title },
-      {
-        $set: {
-          title: definition.title,
-          teamA: teamA.team._id,
-          teamB: teamB.team._id,
-          scorer: definition.scorer._id,
-          oversPerInnings: definition.oversPerInnings,
-          teamAPlayers: teamA.players,
-          teamBPlayers: teamB.players,
-          createdAt: admin._id,
-          status: "scheduled",
-        },
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const match = await Match.create({
+      title: definition.title,
+      teamA: teamA.team._id,
+      teamB: teamB.team._id,
+      scorer: definition.scorer._id,
+      oversPerInnings: definition.oversPerInnings,
+      teamAPlayers: teamA.players,
+      teamBPlayers: teamB.players,
+      createdBy: admin._id,
+      status: "scheduled",
+    });
 
-    console.log(`Created/updated match: ${definition.title}`);
+    console.log(`Created match: ${match.title}`);
   }
 
-  console.log("\nSACL seed completed successfully!");
-  console.log("--------------------------------");
-  console.log("Admin:    admin@sacl.test");
-  console.log("Scorer 1: scorer1@sacl.test");
-  console.log("Scorer 2: scorer2@sacl.test");
-  console.log("Password: " + DEFAULT_PASSWORD);
-  console.log("--------------------------------");
+  // 6. Summary
+  console.log("\n====================================");
+  console.log("       SACL SEED COMPLETED");
+  console.log("====================================");
+
+  console.log("Admin:       admin@sacl.test");
+  console.log("Scorer 1:    scorer1@sacl.test");
+  console.log("Scorer 2:    scorer2@sacl.test");
   console.log("Team owners: owner1@sacl.test to owner4@sacl.test");
-  console.log("Players: player1@sacl.test to player52@sacl.test");
-  console.log("--------------------------------");
+  console.log("Players:     player1@sacl.test to player52@sacl.test");
+  console.log("Password:    " + DEFAULT_PASSWORD);
+
+  console.log("------------------------------------");
+  console.log("Teams:       4");
+  console.log("Players:     52");
+  console.log("Scorers:     2");
+  console.log("Matches:     2");
+  console.log("====================================\n");
 }
 
 seed()
