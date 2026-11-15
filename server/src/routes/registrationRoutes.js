@@ -1,0 +1,30 @@
+import { Router } from "express";
+import {
+  registerPlayer,
+  registerTeam,
+  myRegistration,
+} from "../controllers/registrationController.js";
+import { protect, allowRoles } from "../middleware/auth.js";
+import Team from "../models/Team.js";
+const router = Router();
+router.use(protect);
+router.get("/me", myRegistration);
+router.post("/player", allowRoles("player"), registerPlayer);
+router.post("/team", allowRoles("team_owner"), registerTeam);
+router.get("/available-teams", protect, async (req, res, next) => {
+  try {
+    const teams = await Team.find({
+      approvalStatus: "approved",
+    })
+      .select("_id name")
+      .sort({ name: 1 });
+
+    res.json({
+      success: true,
+      teams,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+export default router;
