@@ -18,11 +18,20 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import matchRoutes from "./routes/matchRoutes.js";
 import publicMatchRoutes from "./routes/publicMatchRoutes.js";
 
+import superAdminRoutes from "./routes/superAdminRoutes.js";
+import saasRoutes from "./routes/saasRoutes.js";
+import tournamentRoutes from "./routes/tournamentRoutes.js";
+
+import publicTournamentRoutes from "./routes/publicTournamentRoutes.js";
+
 // Socket.IO
 import { initializeAuctionSocket } from "./socket/auctionSocket.js";
 import { configureScoringSocket } from "./socket/scoringSocket.js";
 
 import { notFound, errorHandler } from "./middleware/error.js";
+
+// use this where ever necessary
+// router.use(requireSubscription);
 
 const app = express();
 
@@ -63,6 +72,12 @@ app.use("/api/uploads", uploadRoutes);
 // Live scoring routes
 app.use("/api/matches", matchRoutes);
 app.use("/api/public/matches", publicMatchRoutes);
+app.use("/api/public/tournaments", publicTournamentRoutes);
+
+app.use("/api/super-admin", superAdminRoutes);
+app.use("/api/saas", saasRoutes);
+app.use("/api/tournaments", tournamentRoutes);
+
 
 // Error handling
 app.use(notFound);

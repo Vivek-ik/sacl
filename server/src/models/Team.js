@@ -1,12 +1,24 @@
 import mongoose from "mongoose";
 const teamSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true, unique: true },
+    name: { type: String, required: false, trim: true, unique: true },
     logo: String,
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
+    tournament: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tournament",
+      required: true,
+      index: true,
     },
     primaryOwner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -31,4 +43,9 @@ const teamSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-export default mongoose.model("Team", teamSchema);
+
+teamSchema.index({ organization: 1, tournament: 1, name: 1 }, { unique: true });
+
+const Team = mongoose.models.Team || mongoose.model("Team", teamSchema);
+
+export default Team;

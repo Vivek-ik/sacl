@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { protect } from "../middleware/auth.js";
+
+import { protect, allowRoles } from "../middleware/auth.js";
+import { requireOrganization } from "../middleware/requireOrganization.js";
+
 import {
   createMatch,
   listMatches,
@@ -13,43 +16,52 @@ import {
   complete,
   requireAssignedScorer,
 } from "../controllers/matchController.js";
+
 const r = Router();
-const roles =
-  (...allowed) =>
-  (req, res, next) =>
-    allowed.includes(req.user?.role)
-      ? next()
-      : res.status(403).json({ success: false, message: "Not authorized" });
-const admin = [protect, roles("admin")],
-  scorer = [protect, roles("admin", "scorer")];
-r.get("/", protect, roles("admin", "scorer"), listMatches);
-r.post("/", ...admin, createMatch);
-r.post("/:matchId/complete", ...admin, complete);
-r.get("/:matchId", protect, getMatch);
-r.get("/:matchId/roster", ...scorer, requireAssignedScorer, roster);
-r.post("/:matchId/innings/start", ...scorer, requireAssignedScorer, start);
+
+// All routes require authentication and organization context.
+r.use(protect);
+r.use(requireOrganization);
+
+// Organization admins and existing legacy admins
+const admin = allowRoles("org_admin", "admin");
+
+// Scorers and admins
+const scorer = allowRoles("org_admin", "admin", "scorer");
+
+r.get("/", scorer, listMatches);
+
+r.post("/", admin, createMatch);
+
+r.post("/:matchId/complete", admin, complete);
+
+r.get("/:matchId", getMatch);
+
+r.get("/:matchId/roster", scorer, requireAssignedScorer, roster);
+
+r.post("/:matchId/innings/start", scorer, requireAssignedScorer, start);
+
 r.patch(
   "/:matchId/innings/:inningsId/players",
-  ...scorer,
+  scorer,
   requireAssignedScorer,
   players,
 );
+
 r.post(
   "/:matchId/innings/:inningsId/deliveries",
-  ...scorer,
+  scorer,
   requireAssignedScorer,
   delivery,
 );
+
 r.post(
   "/:matchId/innings/:inningsId/undo",
-  ...scorer,
+  scorer,
   requireAssignedScorer,
   undo,
 );
-r.post(
-  "/:matchId/innings/:inningsId/end",
-  ...scorer,
-  requireAssignedScorer,
-  end,
-);
+
+r.post("/:matchId/innings/:inningsId/end", scorer, requireAssignedScorer, end);
+
 export default r;

@@ -4,19 +4,38 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     email: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
       lowercase: true,
       trim: true,
     },
     password: { type: String, required: true, select: false },
     phone: { type: String, trim: true },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null,
+      index: true,
+    },
+
     role: {
       type: String,
-      enum: ["player", "team_owner", "auctioneer", "admin", "scorer"],
+      enum: [
+        "super_admin",
+        "org_admin",
+        "admin", // Temporary compatibility for existing records
+        "auctioneer",
+        "scorer",
+        "team_owner",
+        "player",
+      ],
       default: "player",
     },
-    isActive: { type: Boolean, default: true },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true },
 );

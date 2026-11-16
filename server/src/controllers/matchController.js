@@ -11,6 +11,7 @@ import {
   endInnings,
   snapshot,
 } from "../services/scoringService.js";
+import Tournament from "../models/Tournament.js";
 
 const run = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -19,10 +20,23 @@ const bad = (res, status, message) =>
 const io = (req) => req.app.get("io");
 
 export const requireAssignedScorer = run(async (req, res, next) => {
-  const match = await Match.findById(req.params.matchId).select("scorer");
-  if (!match) return bad(res, 404, "Match not found");
-  if (req.user.role !== "admin" && String(match.scorer) !== String(req.user.id))
+  const match = await Match.findOne({
+    _id: req.params.matchId,
+    organization: req.organizationId,
+  }).select("scorer");
+
+  if (!match) {
+    return bad(res, 404, "Match not found");
+  }
+
+  if (
+    req.user.role !== "org_admin" &&
+    req.user.role !== "admin" &&
+    String(match.scorer) !== String(req.user.id)
+  ) {
     return bad(res, 403, "This match is not assigned to you");
+  }
+
   next();
 });
 
@@ -68,6 +82,16 @@ export const createMatch = run(async (req, res) => {
     (await Player.countDocuments({ _id: { $in: ids } })) !== ids.length
   )
     return bad(res, 400, "Invalid player in roster");
+
+  const tournament = await Tournament.findOne({
+    _id: req.body.tournament,
+    organization: req.organizationId,
+  });
+
+  if (!tournament) {
+    return bad(res, 404, "Tournament not found");
+  }
+
   const match = await Match.create({
     title: req.body.title,
     teamA: req.body.teamA,
@@ -77,8 +101,10 @@ export const createMatch = run(async (req, res) => {
     teamAPlayers: req.body.teamAPlayers,
     teamBPlayers: req.body.teamBPlayers,
 
-    createdBy: req.user.id,
+    organization: req.organizationId,
+    tournament: tournament._id,
 
+    createdBy: req.user.id,
     status: "scheduled",
   });
   res.status(201).json({ success: true, match });
@@ -86,7 +112,11 @@ export const createMatch = run(async (req, res) => {
 
 export const listMatches = run(async (req, res) => {
   const filter = req.user.role === "scorer" ? { scorer: req.user.id } : {};
-  const matches = await Match.find(filter)
+  const matches = await Match.find({
+    organization: req.organizationId,
+    ...(req.user.role === "scorer" ? { scorer: req.user.id } : {}),
+    filter,
+  })
     .populate("teamA", "name")
     .populate("teamB", "name")
     .populate("scorer", "name")
@@ -94,7 +124,10 @@ export const listMatches = run(async (req, res) => {
   res.json({ success: true, matches });
 });
 export const getMatch = run(async (req, res) => {
-  const match = await Match.findById(req.params.matchId)
+  const match = await Match.findOne({
+    _id: req.params.matchId,
+    organization: req.organizationId,
+  })
     .populate("teamA", "name")
     .populate("teamB", "name")
     .populate("teamAPlayers", "fullName category role")
@@ -103,7 +136,10 @@ export const getMatch = run(async (req, res) => {
   res.json({ success: true, match });
 });
 export const roster = run(async (req, res) => {
-  const m = await Match.findById(req.params.matchId)
+  const m = await Match.findOne({
+    _id: req.params.matchId,
+    organization: req.organizationId,
+  })
     .populate("teamA", "name")
     .populate("teamB", "name")
     .populate("teamAPlayers", "fullName category role")
@@ -195,11 +231,13 @@ export const complete = run(async (req, res) => {
   io(req)?.to(`match:${m._id}`).emit("score:update", data);
   res.json({ success: true, match: m, snapshot: data });
 });
+
 export const publicSnapshot = run(async (req, res) => {
   const data = await snapshot(req.params.matchId);
   if (!data) return bad(res, 404, "Match not found");
   res.json({ success: true, ...data });
 });
+
 export const publicList = run(async (req, res) => {
   const matches = await Match.find({
     status: { $in: ["live", "scheduled", "completed"] },

@@ -60,6 +60,7 @@ export default function Team() {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [applications, setApplications] = useState([]);
 
   const loadTeam = useCallback(async () => {
     try {
@@ -76,10 +77,25 @@ export default function Team() {
       setLoading(false);
     }
   }, []);
+  const loadApplications = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await api.get("/team/my-applications");
+
+      setApplications(response.data.applications || []);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load your team applications.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadTeam();
-  }, [loadTeam]);
+    loadApplications();
+  }, [loadTeam, loadApplications]);
 
   if (loading) {
     return (

@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getDashboardPath } from "../lib/authRedirect";
+// import { getDashboardPath } from "../utils/authRedirect";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -12,23 +14,41 @@ export default function Register() {
   });
 
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
   const { register } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
 
   function change(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   }
 
   async function submit(e) {
     e.preventDefault();
     setError("");
+    setBusy(true);
 
     try {
-      // Payload includes the selected role
       await register(form);
-      nav("/registration");
+
+      const user = JSON.parse(localStorage.getItem("sacl_user"));
+      const requestedPath = location.state?.from;
+
+      const redirectPath =
+        user?.role === "team_owner" &&
+        requestedPath?.startsWith("/tournaments/")
+          ? requestedPath
+          : getDashboardPath(user);
+
+      nav(redirectPath, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -64,7 +84,6 @@ export default function Register() {
           </label>
         ))}
 
-        {/* Role dropdown */}
         <label className="mt-4 block text-sm">
           Register as
           <select
@@ -81,15 +100,25 @@ export default function Register() {
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-xl bg-lime py-3 font-black text-pitch"
+          disabled={busy}
+          className="mt-6 w-full rounded-xl bg-lime py-3 font-black text-pitch disabled:opacity-60"
         >
-          Create {form.role === "player" ? "player" : "team owner"} account
+          {busy
+            ? "Creating account..."
+            : `Create ${form.role === "player" ? "player" : "team owner"} account`}
         </button>
 
         <p className="mt-4 text-center text-sm text-emerald-100/60">
           Already registered?{" "}
           <Link className="text-lime" to="/login">
             Sign in
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-sm text-emerald-100/60">
+          Registering a cricket association?{" "}
+          <Link className="font-semibold text-lime" to="/organization/register">
+            Register your organization
           </Link>
         </p>
       </form>
