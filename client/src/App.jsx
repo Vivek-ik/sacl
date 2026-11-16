@@ -35,6 +35,7 @@ import {
 import OrganizationRegister from "./pages/OrganizationRegister";
 import PublicTournaments from "./pages/public/Tournaments";
 import TournamentDetails from "./pages/public/TournamentDetails";
+import Landing from "./pages/Landing";
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
@@ -69,14 +70,14 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
 
       {/* Role-based home dashboard */}
-      <Route
+      {/* <Route
         path="/"
         element={
           <Protected>
             <HomeDashboard />
           </Protected>
         }
-      />
+      /> */}
 
       {/* Super Admin */}
       <Route
@@ -253,6 +254,7 @@ function AppRoutes() {
       <Route path="/tournaments" element={<PublicTournaments />} />
 
       <Route path="/tournaments/:id" element={<TournamentDetails />} />
+      <Route path="/" element={<Landing />} />
     </Routes>
   );
 }
