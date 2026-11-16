@@ -8,7 +8,7 @@ export function getDashboardPath(user) {
       return "/";
 
     case "team_owner":
-      return "/team";
+      return "/registration";
 
     case "player":
       return "/registration";

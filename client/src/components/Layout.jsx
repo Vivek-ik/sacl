@@ -52,8 +52,8 @@ const legacyAdminLinks = [
 
 const teamOwnerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
-  { to: "/team", label: "My Team", icon: ShieldCheck },
   { to: "/registration", label: "My Registration", icon: UserRound },
+  { to: "/team", label: "My Team", icon: ShieldCheck },
   { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 

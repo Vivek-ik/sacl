@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -35,7 +34,7 @@ const portalContent = {
           "Complete your cricket profile, select your playing role and register for participation.",
         icon: Users,
         action: "Player Registration",
-        to: "/registration",
+        to: "/register",
         color: "blue",
       },
       {
@@ -71,22 +70,19 @@ const portalContent = {
   Player: {
     eyebrow: "PLAYER PORTAL",
     title: "Player Registration",
-    description:
-      "Ready to play? Complete your player profile and submit your cricket details.",
+    description: "",
     cards: [
       {
         title: "Complete Player Profile",
-        description:
-          "Enter your personal information, cricket category, playing role, batting style and bowling style.",
+        description: "",
         icon: UserPlus,
         action: "Open Player Registration",
-        to: "/registration",
+        to: "/register",
         color: "blue",
       },
       {
         title: "My Player Registration",
-        description:
-          "Check your registration information, preferred team and approval status.",
+        description: "",
         icon: ClipboardList,
         action: "View My Registration",
         to: "/registration",
@@ -98,13 +94,20 @@ const portalContent = {
   "Team Owner": {
     eyebrow: "TEAM OWNER PORTAL",
     title: "Build Your Team",
-    description:
-      "Create your team owner account, explore tournaments and submit applications for participation.",
+    description: "",
     cards: [
       {
+        title: "Complete Owner Profile",
+        description: "",
+        icon: UserPlus,
+        action: "Open Owner Registration",
+        to: "/register",
+        color: "blue",
+      },
+      ,
+      {
         title: "Browse Tournaments",
-        description:
-          "Discover available tournaments, check dates, locations, team limits and registration availability.",
+        description: "",
         icon: Trophy,
         action: "Explore Tournaments",
         to: "/tournaments",
@@ -112,8 +115,7 @@ const portalContent = {
       },
       {
         title: "My Team Dashboard",
-        description:
-          "Manage your team, view tournament applications and track approval status.",
+        description: "",
         icon: Users,
         action: "Open Team Dashboard",
         to: "/team",
@@ -246,9 +248,7 @@ export default function Landing() {
 
   const handleGetStarted = () => {
     setActiveTab("Overview");
-    document
-      .getElementById("portals")
-      ?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("portals")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -351,15 +351,9 @@ export default function Landing() {
 
             <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight sm:text-6xl lg:text-7xl">
               PLAY. BID.
-              <br />
-              <span className="text-amber-400">WIN.</span>
+              {/* <br /> */}
+              <span className="text-amber-400 "> WIN.</span>
             </h1>
-
-            <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-              The complete cricket tournament platform. Player registration,
-              team management, real-time auctions and live scoring — all in
-              one place.
-            </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <button
@@ -370,28 +364,13 @@ export default function Landing() {
                 <ArrowRight size={18} />
               </button>
 
-              <Link
+              {/* <Link
                 to="/tournaments"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold text-white transition hover:border-amber-400"
               >
                 <Trophy size={18} />
                 View Tournaments
-              </Link>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-5 text-xs text-slate-400">
-              <span className="flex items-center gap-2">
-                <ShieldCheck size={15} className="text-emerald-400" />
-                Secure accounts
-              </span>
-              <span className="flex items-center gap-2">
-                <Radio size={15} className="text-amber-400" />
-                Live auctions
-              </span>
-              <span className="flex items-center gap-2">
-                <Users size={15} className="text-blue-400" />
-                Team management
-              </span>
+              </Link> */}
             </div>
           </div>
 
@@ -422,7 +401,7 @@ export default function Landing() {
         </section>
 
         {/* Statistics */}
-        <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
             icon={Users}
             label="Teams"
@@ -450,7 +429,7 @@ export default function Landing() {
             value="₹1,200"
             detail="Per player"
           />
-        </section>
+        </section> */}
 
         {/* Portals */}
         <section
@@ -529,9 +508,7 @@ export default function Landing() {
                 key={index}
                 className="flex items-start gap-3 rounded-xl bg-[#192b42] p-4 text-sm text-slate-300"
               >
-                <span className="font-black text-amber-400">
-                  0{index + 1}
-                </span>
+                <span className="font-black text-amber-400">0{index + 1}</span>
                 <span>{rule}</span>
               </div>
             ))}
@@ -545,9 +522,9 @@ export default function Landing() {
               <p className="font-black">
                 SACL <span className="text-amber-400">2.0</span>
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              {/* <p className="mt-1 text-xs text-slate-500">
                 The Digital Auction Arena
-              </p>
+              </p> */}
             </div>
 
             <div className="flex flex-wrap justify-center gap-5 text-xs text-slate-400">
