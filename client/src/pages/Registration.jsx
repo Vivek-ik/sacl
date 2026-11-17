@@ -45,25 +45,29 @@ export default function Registration() {
 
   const [form, setForm] = useState({
     fullName: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+
     category: "C",
     role: "BATTER",
     battingStyle: "RIGHT_HAND",
     bowlingStyle: "NONE",
     preferredJerseyNumber: "",
     preferredTeamId: "",
+
     name: "",
     coOwnerName: "",
     coOwnerPhone: "",
   });
 
   useEffect(() => {
-    if (user?.name) {
-      setForm((prev) => ({
-        ...prev,
-        fullName: user.name,
-      }));
-    }
-  }, [user?.name]);
+    setForm((prev) => ({
+      ...prev,
+      fullName: user?.name || prev.fullName,
+      email: user?.email || prev.email,
+      phone: user?.phone || prev.phone,
+    }));
+  }, [user?.name, user?.email, user?.phone]);
 
   useEffect(() => {
     if (!isTeamOwner) {
@@ -273,11 +277,41 @@ export default function Registration() {
                 </label>
 
                 <label className="mt-4 block text-sm">
-                  Primary Owner
+                  Primary Owner Name
                   <input
-                    value={user?.name || ""}
-                    disabled
-                    className={`${inputClass} opacity-60`}
+                    required
+                    name="fullName"
+                    value={form.fullName}
+                    onChange={updateField}
+                    className={inputClass}
+                    placeholder="Enter owner name"
+                  />
+                </label>
+
+                <label className="mt-4 block text-sm">
+                  Owner Email Address
+                  <input
+                    required
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={updateField}
+                    className={inputClass}
+                    placeholder="Enter email address"
+                  />
+                </label>
+
+                <label className="mt-4 block text-sm">
+                  Owner Phone Number
+                  <input
+                    required
+                    type="tel"
+                    name="phone"
+                    value={form.phone}
+                    onChange={updateField}
+                    className={inputClass}
+                    placeholder="Enter phone number"
+                    pattern="[+]?[0-9\s()-]{10,15}"
                   />
                 </label>
 

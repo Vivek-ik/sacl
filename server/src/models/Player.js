@@ -75,10 +75,12 @@ const playerSchema = new mongoose.Schema(
 
     paymentScreenshot: {
       type: String,
+      default: undefined,
     },
 
     paymentScreenshotPublicId: {
-      tyepe: String,
+      type: String,
+      default: undefined,
     },
     paymentSubmittedAt: {
       type: Date,

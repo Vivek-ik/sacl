@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, select: false },
-    phone: { type: String, trim: true },
+    phone: { type: String, trim: true, unique: true },
     organization: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",

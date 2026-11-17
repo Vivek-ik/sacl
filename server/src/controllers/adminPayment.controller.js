@@ -26,7 +26,8 @@ export const getPendingPaymentProofs = async (req, res, next) => {
 export const reviewPaymentProof = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { action, reason } = req.body;
+    const { status, reason } = req.body;
+    console.log("status", status);
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -35,10 +36,10 @@ export const reviewPaymentProof = async (req, res, next) => {
       });
     }
 
-    if (!["approve", "reject"].includes(action)) {
+    if (!["approved", "rejected"].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Action must be approve or reject.",
+        message: "Action must be approved or rejected.",
       });
     }
 
@@ -58,7 +59,7 @@ export const reviewPaymentProof = async (req, res, next) => {
       });
     }
 
-    if (action === "approve") {
+    if (status === "approved") {
       player.paymentVerificationStatus = "approved";
       player.registrationFeeStatus = "paid";
       player.paymentRejectionReason = "";
@@ -83,7 +84,7 @@ export const reviewPaymentProof = async (req, res, next) => {
     return res.json({
       success: true,
       message:
-        action === "approve"
+        status === "approved"
           ? "Payment verified successfully."
           : "Payment proof rejected.",
       player,
@@ -92,4 +93,3 @@ export const reviewPaymentProof = async (req, res, next) => {
     next(error);
   }
 };
-    

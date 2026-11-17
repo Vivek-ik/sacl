@@ -1506,6 +1506,203 @@ export function TeamsManagement() {
   );
 }
 
+function PaymentReviewModal({ player, onClose, onReviewed }) {
+  const [busy, setBusy] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  if (!player) return null;
+
+  const paymentStatus = player.paymentVerificationStatus || "not_submitted";
+
+  async function reviewPayment(status) {
+    if (status === "rejected" && !rejectionReason.trim()) {
+      alert("Please enter a rejection reason.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${status} this payment?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setBusy(true);
+
+      await api.patch(`/admin/payments/${player._id}/review`, {
+        status,
+        rejectionReason: status === "rejected" ? rejectionReason.trim() : "",
+      });
+
+      alert(
+        status === "approved"
+          ? "Payment verified successfully."
+          : "Payment rejected successfully.",
+      );
+
+      await onReviewed();
+      onClose();
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-3 sm:p-5">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#0d192c] shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#0d192c] p-5">
+          <div>
+            <h2 className="text-xl font-bold text-white">
+              Payment Verification
+            </h2>
+            <p className="mt-1 text-sm text-white/50">
+              Verify the player's UTR and payment screenshot.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-white/10 px-3 py-2 text-white/70 hover:bg-white/10"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-6 p-5">
+          {/* Player details */}
+          <div className="grid gap-4 rounded-xl border border-white/10 bg-[#050817] p-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-white/40">Player</p>
+              <p className="mt-1 font-semibold text-white">{player.fullName}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-white/40">Phone</p>
+              <p className="mt-1 font-semibold text-white">
+                {player.user?.phone || "—"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-white/40">Tournament</p>
+              <p className="mt-1 font-semibold text-white">
+                {player.tournament?.name || "—"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-white/40">Payment Status</p>
+              <div className="mt-1">
+                <StatusBadge status={paymentStatus} />
+              </div>
+            </div>
+          </div>
+
+          {/* Transaction details */}
+          <div>
+            <h3 className="mb-3 font-bold text-white">Transaction Details</h3>
+
+            <div className="rounded-xl border border-white/10 bg-[#050817] p-4">
+              <p className="text-xs text-white/40">
+                UTR / Transaction Reference
+              </p>
+
+              <p className="mt-2 break-all text-lg font-bold tracking-wide text-[#f4c34e]">
+                {player.paymentUtr || "Not submitted"}
+              </p>
+
+              <p className="mt-4 text-xs text-white/40">Submitted At</p>
+
+              <p className="mt-1 text-sm text-white">
+                {player.paymentSubmittedAt
+                  ? new Date(player.paymentSubmittedAt).toLocaleString("en-IN")
+                  : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Screenshot */}
+          <div>
+            <h3 className="mb-3 font-bold text-white">Payment Screenshot</h3>
+
+            {player.paymentScreenshot ? (
+              <a
+                href={player.paymentScreenshot}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-xl border border-white/10 bg-[#050817]"
+              >
+                <img
+                  src={player.paymentScreenshot}
+                  alt="Player payment proof"
+                  className="max-h-[450px] w-full object-contain"
+                />
+
+                <p className="border-t border-white/10 p-3 text-center text-sm text-[#f4c34e]">
+                  Open full-size screenshot ↗
+                </p>
+              </a>
+            ) : (
+              <div className="rounded-xl border border-dashed border-white/20 p-10 text-center text-sm text-white/40">
+                No payment screenshot uploaded.
+              </div>
+            )}
+          </div>
+
+          {/* Rejection reason */}
+          {paymentStatus === "submitted" && (
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-white">
+                Rejection Reason (required when rejecting)
+              </label>
+
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+                placeholder="Enter reason if payment is invalid..."
+                className="w-full rounded-xl border border-white/10 bg-[#050817] p-3 text-sm text-white outline-none focus:border-[#f4c34e]"
+              />
+            </div>
+          )}
+
+          {/* Actions */}
+          {paymentStatus === "submitted" ? (
+            <div className="flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => reviewPayment("approved")}
+                className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {busy ? "Processing..." : "Approve Payment"}
+              </button>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => reviewPayment("rejected")}
+                className="flex-1 rounded-xl bg-red-600/20 px-5 py-3 font-bold text-red-300 hover:bg-red-600/30 disabled:opacity-50"
+              >
+                {busy ? "Processing..." : "Reject Payment"}
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-center text-sm text-white/60">
+              This payment has already been reviewed. Current status:{" "}
+              <strong className="text-white">{paymentStatus}</strong>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlayersManagement() {
   const [players, setPlayers] = useState([]);
   const [stats, setStats] = useState({});
@@ -1517,6 +1714,7 @@ export function PlayersManagement() {
   const [category, setCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState(null);
 
   async function fetchPlayers() {
     try {
@@ -1628,7 +1826,7 @@ export function PlayersManagement() {
                 "Playing Role",
                 "Tournament",
                 "Payment",
-                "Approval",
+                // "Approval",
                 "Actions",
               ]}
               rows={players}
@@ -1649,12 +1847,28 @@ export function PlayersManagement() {
                   <td className="px-5 py-4">
                     {player.tournament?.name || "—"}
                   </td>
+
                   <td className="px-5 py-4">
-                    <StatusBadge status={player.registrationFeeStatus} />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPayment(player)}
+                      className="group flex items-center gap-2 rounded-lg border border-[#f4c34e]/20 bg-[#f4c34e]/5 px-3 py-2 transition hover:border-[#f4c34e]/60 hover:bg-[#f4c34e]/10"
+                    >
+                      <StatusBadge
+                        status={
+                          player.paymentVerificationStatus || "not_submitted"
+                        }
+                      />
+
+                      <span className="text-xs font-semibold text-[#f4c34e] group-hover:underline">
+                        View Proof
+                      </span>
+                    </button>
                   </td>
+{/* 
                   <td className="px-5 py-4">
                     <StatusBadge status={player.approvalStatus} />
-                  </td>
+                  </td> */}
                   <td className="px-5 py-4">
                     <ReviewButtons
                       item={player}
@@ -1670,6 +1884,13 @@ export function PlayersManagement() {
           </>
         )}
       </Panel>
+      {selectedPayment && (
+        <PaymentReviewModal
+          player={selectedPayment}
+          onClose={() => setSelectedPayment(null)}
+          onReviewed={fetchPlayers}
+        />
+      )}
     </div>
   );
 }

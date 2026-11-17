@@ -48,7 +48,7 @@ import Landing from "./pages/Landing";
 function Protected({ children, roles }) {
   const { user } = useAuth();
 
-  if (!user) return <Navigate to="/login" replace />;
+  // if (!user) return <Navigate to="/login" replace />;
 
   if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
@@ -98,14 +98,14 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       {/* Role-based home dashboard */}
-      <Route
+      {/* <Route
         path="/"
         element={
           <Protected>
             <HomeDashboard />
           </Protected>
         }
-      />
+      /> */}
       {/* Super Admin */}
       <Route
         path="/super-admin/organizations"
@@ -262,7 +262,7 @@ function AppRoutes() {
       <Route path="/tournaments" element={<PublicTournaments />} />
       <Route path="/tournaments/:id" element={<TournamentDetails />} />
       <Route path="/" element={<Landing />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
       <Route path="/home" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />

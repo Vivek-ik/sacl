@@ -42,8 +42,6 @@ export default function Register() {
 
   const [utr, setUtr] = useState("");
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState(null);
 
   const submitPaymentProof = async (e) => {
     e.preventDefault();
@@ -64,6 +62,7 @@ export default function Register() {
       setPaymentSubmitting(true);
 
       const { data } = await api.post("/player-payment/submit-proof", formData);
+      console.log("datadatadata", data);
 
       setPaymentStatus("submitted");
       alert(data.message);
@@ -135,10 +134,28 @@ export default function Register() {
   async function submit(e) {
     e.preventDefault();
     setError("");
+
+    if (form.role === "player") {
+      if (!form.tournamentId) {
+        setError("Please select a tournament.");
+        return;
+      }
+
+      if (!utr.trim()) {
+        setError("Please enter your UTR number.");
+        return;
+      }
+
+      if (!paymentScreenshot) {
+        setError("Please upload your payment screenshot.");
+        return;
+      }
+    }
+
     setBusy(true);
 
     try {
-      // STEP 1: Create account and log the user in.
+      // STEP 1: Register account
       await register({
         name: form.name,
         email: form.email,
@@ -147,19 +164,13 @@ export default function Register() {
         role: form.role,
       });
 
-      const user = JSON.parse(localStorage.getItem("sacl_user") || "null");
-
-      if (!user) {
-        throw new Error("Account created, but user session was not found.");
-      }
-
-      // Team owner continues through the existing team registration flow.
+      // Team owner registration
       if (form.role === "team_owner") {
         navigate("/registration", { replace: true });
         return;
       }
 
-      // STEP 2: Create player application.
+      // STEP 2: Create player application
       const playerPayload = {
         tournamentId: form.tournamentId,
         fullName: form.fullName || form.name,
@@ -169,25 +180,41 @@ export default function Register() {
         bowlingStyle: form.bowlingStyle,
         preferredJerseyNumber: Number(form.preferredJerseyNumber),
       };
-      await api.post("/registrations/player", playerPayload);
 
-      // STEP 3: Create PhonePe payment order.
-      const paymentResponse = await api.post("/payments/registration/create", {
-        kind: "player",
+      const playerResponse = await api.post(
+        "/registrations/player",
+        playerPayload,
+      );
+
+      console.log("Player created:", playerResponse.data);
+
+      // STEP 3: Submit UTR and screenshot
+      const paymentData = new FormData();
+
+      paymentData.append("utr", utr.trim());
+      paymentData.append("screenshot", paymentScreenshot);
+
+      const paymentResponse = await api.post(
+        "/player-payment/submit-proof",
+        paymentData,
+      );
+
+      console.log("Payment proof submitted:", paymentResponse.data);
+
+      alert(
+        paymentResponse.data?.message ||
+          "Registration and payment proof submitted successfully!",
+      );
+
+      navigate("/registration", {
+        replace: true,
+        state: {
+          message:
+            "Your registration and payment proof have been submitted. Your application is awaiting verification.",
+        },
       });
-
-      const redirectUrl = paymentResponse.data?.redirectUrl;
-
-      if (!redirectUrl) {
-        throw new Error(
-          "Application created, but payment checkout URL was not returned.",
-        );
-      }
-
-      // STEP 4: Redirect to PhonePe.
-      window.location.assign(redirectUrl);
     } catch (err) {
-      console.error("Signup error:", err);
+      console.error("Registration submission error:", err);
 
       const message =
         err.response?.data?.message ||
@@ -195,19 +222,6 @@ export default function Register() {
         "Registration failed. Please try again.";
 
       setError(message);
-
-      // If the account and application were already created,
-      // take the player to their application instead of asking
-      // them to create another account.
-      const user = JSON.parse(localStorage.getItem("sacl_user") || "null");
-
-      if (user) {
-        // The application may already exist; the application page
-        // should provide a retry payment action.
-        if (err.response?.status !== 401) {
-          // Keep the error visible on the signup page for now.
-        }
-      }
     } finally {
       setBusy(false);
     }
@@ -539,7 +553,8 @@ export default function Register() {
                 </div>
 
                 {/* UTR AND SCREENSHOT FORM */}
-                <form onSubmit={submitPaymentProof} className="mt-6 space-y-5">
+                <div className="mt-6 space-y-5">
+                  {" "}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">
                       UTR / Transaction Reference Number
@@ -560,7 +575,6 @@ export default function Register() {
                       transaction details.
                     </p>
                   </div>
-
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">
                       Payment Screenshot
@@ -581,7 +595,6 @@ export default function Register() {
                       (maximum 5 MB).
                     </p>
                   </div>
-
                   {paymentScreenshot && (
                     <div className="rounded-xl border border-white/10 bg-[#050817] p-3">
                       <p className="mb-2 text-xs text-[#a6b4c8]">
@@ -593,17 +606,7 @@ export default function Register() {
                       </p>
                     </div>
                   )}
-
-                  <button
-                    type="submit"
-                    disabled={paymentSubmitting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f4c34e] px-5 py-3 font-bold text-[#101827] transition hover:bg-[#e6b638] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {paymentSubmitting
-                      ? "Submitting payment proof..."
-                      : "Submit Payment Proof"}
-                  </button>
-                </form>
+                </div>
               </section>
             </>
           )}
@@ -614,12 +617,11 @@ export default function Register() {
             className="mt-7 w-full rounded-xl bg-[#f4c34e] py-4 font-black text-[#101827] transition hover:bg-[#ffd36a] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
-              ? "Processing..."
+              ? "Submitting Registration..."
               : form.role === "player"
-                ? "Create Account & Pay Registration Fee"
+                ? "Submit Registration & Payment Proof"
                 : "Create Team Owner Account"}
           </button>
-
           <p className="mt-5 text-center text-sm text-[#a6b4c8]">
             Already registered?{" "}
             <Link to="/login" className="font-bold text-[#f4c34e]">

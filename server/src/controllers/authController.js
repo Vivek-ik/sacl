@@ -5,35 +5,96 @@ import { signToken } from "../utils/token.js";
 export async function register(req, res, next) {
   try {
     const { name, email, password, phone } = req.body;
+
     const allowedRoles = ["player", "team_owner"];
 
     const role = allowedRoles.includes(req.body.role)
       ? req.body.role
       : "player";
 
-    if (!name || !email || !password || password.length < 8)
+    if (!name?.trim() || !phone || !password || password.length < 8) {
       return res.status(400).json({
-        message: "Name, valid email and password (8+ characters) are required",
+        success: false,
+        message: "Name, phone number and password (8+ characters) are required",
       });
-    if (await User.findOne({ email }))
-      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    // Normalize phone number
+    const normalizedPhone = phone.replace(/[\s()-]/g, "");
+
+    // Validate Indian mobile number
+    if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid 10-digit Indian mobile number",
+      });
+    }
+
+    // Check duplicate mobile number
+    const existingPhone = await User.findOne({
+      phone: normalizedPhone,
+    });
+
+    if (existingPhone) {
+      return res.status(409).json({
+        success: false,
+        message: "This mobile number is already registered. Please login.",
+        field: "phone",
+      });
+    }
+
+    // Check duplicate email only when provided
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    if (normalizedEmail) {
+      const existingEmail = await User.findOne({
+        email: normalizedEmail,
+      });
+
+      if (existingEmail) {
+        return res.status(409).json({
+          success: false,
+          message: "Email already registered",
+          field: "email",
+        });
+      }
+    }
+
     const user = await User.create({
-      name,
-      email,
-      phone,
+      name: name.trim(),
+      email: normalizedEmail || undefined,
+      phone: normalizedPhone,
       password: await bcrypt.hash(password, 12),
       role,
     });
-    res.status(201).json({
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
       token: signToken(user),
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
     });
   } catch (e) {
+    // Handle duplicate-key race conditions
+    if (e.code === 11000) {
+      const duplicateField = Object.keys(e.keyPattern || {})[0];
+
+      return res.status(409).json({
+        success: false,
+        message:
+          duplicateField === "phone"
+            ? "This mobile number is already registered. Please login."
+            : "This email is already registered.",
+        field: duplicateField,
+      });
+    }
+
     next(e);
   }
 }

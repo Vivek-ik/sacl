@@ -65,14 +65,14 @@ export default function Login() {
         )}
 
         <label className="mt-6 block text-sm">
-          Email or Phone Number
+          Phone Number
           <input
             required
             type="text"
             autoComplete="username"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="Enter email or phone number"
+            placeholder="Enter phone number"
             className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 outline-none focus:border-lime"
           />
         </label>

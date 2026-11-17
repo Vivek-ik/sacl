@@ -252,13 +252,11 @@ export default function Landing() {
   const current = portalContent[activeTab];
 
   const handleRegistration = () => {
-    if (user) {
-      navigate("/registration");
-    } else {
-      navigate("/login", {
-        state: { from: "/registration" },
-      });
-    }
+    console.log("Player Registration userr", user);
+
+    // if (user) {
+    navigate("/register");
+    // }
   };
   const selectTab = (tab) => {
     setActiveTab(tab);
@@ -299,11 +297,11 @@ export default function Landing() {
             </Link>
 
             <Link
-              to="/login"
+              to="/register"
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-bold hover:border-amber-400 hover:text-amber-400"
             >
               <LogIn size={17} />
-              Login
+              Register
             </Link>
 
             <button
