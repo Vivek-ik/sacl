@@ -40,6 +40,42 @@ export default function Register() {
   const [tournaments, setTournaments] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
+  const [utr, setUtr] = useState("");
+  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+
+  const submitPaymentProof = async (e) => {
+    e.preventDefault();
+
+    if (!utr.trim()) {
+      return alert("Please enter your UTR number.");
+    }
+
+    if (!paymentScreenshot) {
+      return alert("Please upload your payment screenshot.");
+    }
+
+    const formData = new FormData();
+    formData.append("utr", utr.trim());
+    formData.append("screenshot", paymentScreenshot);
+
+    try {
+      setPaymentSubmitting(true);
+
+      const { data } = await api.post("/player-payment/submit-proof", formData);
+
+      setPaymentStatus("submitted");
+      alert(data.message);
+
+      // Refresh your existing registration/application data here if needed.
+    } catch (error) {
+      alert(error.response?.data?.message || "Unable to submit payment proof.");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -398,7 +434,7 @@ export default function Register() {
               </section>
 
               {/* PAYMENT */}
-              <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5">
+              {/* <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5">
                 <h2 className="text-lg font-bold text-[#f4c34e]">
                   3. Registration Payment
                 </h2>
@@ -417,6 +453,157 @@ export default function Register() {
                     Payable at checkout
                   </span>
                 </div>
+              </section> */}
+
+              {/* PAYMENT */}
+              <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#f4c34e]">
+                      3. Registration Payment
+                    </h2>
+                    <p className="mt-1 text-sm text-[#a6b4c8]">
+                      Scan the official SACL QR code to complete your
+                      registration payment.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                    Manual verification
+                  </span>
+                </div>
+
+                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                  {/* QR CODE */}
+                  <div className="rounded-xl border border-white/10 bg-white p-4 text-center">
+                    <h3 className="mb-3 text-sm font-bold text-slate-800">
+                      Scan & Pay using UPI
+                    </h3>
+
+                    <img
+                      src="/public/images/sacl-payment-qr.jpeg"
+                      alt="SACL registration payment QR code"
+                      className="mx-auto aspect-square w-full max-w-[250px] rounded-lg object-contain"
+                    />
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      Scan this QR code using Google Pay, PhonePe, Paytm or any
+                      UPI app.
+                    </p>
+                  </div>
+
+                  {/* PAYMENT INSTRUCTIONS */}
+                  <div className="flex flex-col justify-center">
+                    <h3 className="font-semibold text-white">
+                      Payment instructions
+                    </h3>
+
+                    <ol className="mt-3 space-y-3 text-sm text-[#a6b4c8]">
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          1
+                        </span>
+                        Scan the SACL QR code using your UPI app.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          2
+                        </span>
+                        Pay the registration fee shown by the app.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          3
+                        </span>
+                        Copy the UTR / transaction reference number.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          4
+                        </span>
+                        Upload the payment screenshot and enter your UTR below.
+                      </li>
+                    </ol>
+
+                    <div className="mt-5 rounded-xl border border-[#f4c34e]/20 bg-[#f4c34e]/5 p-3">
+                      <p className="text-xs leading-5 text-[#f4c34e]">
+                        Your payment will remain pending until the SACL admin
+                        verifies the transaction. Do not submit someone else's
+                        UTR or payment screenshot.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* UTR AND SCREENSHOT FORM */}
+                <form onSubmit={submitPaymentProof} className="mt-6 space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-white">
+                      UTR / Transaction Reference Number
+                    </label>
+
+                    <input
+                      type="text"
+                      value={utr}
+                      onChange={(e) => setUtr(e.target.value)}
+                      placeholder="Enter your 12-digit UTR / reference number"
+                      maxLength={30}
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm text-white outline-none transition focus:border-[#f4c34e]"
+                    />
+
+                    <p className="mt-1 text-xs text-[#a6b4c8]">
+                      You can find this number in your successful UPI
+                      transaction details.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-white">
+                      Payment Screenshot
+                    </label>
+
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      required
+                      onChange={(e) =>
+                        setPaymentScreenshot(e.target.files?.[0] || null)
+                      }
+                      className="block w-full cursor-pointer rounded-xl border border-white/10 bg-[#050817] p-3 text-sm text-[#a6b4c8] file:mr-4 file:rounded-lg file:border-0 file:bg-[#f4c34e] file:px-4 file:py-2 file:font-bold file:text-[#101827]"
+                    />
+
+                    <p className="mt-1 text-xs text-[#a6b4c8]">
+                      Upload a clear screenshot of the successful transaction
+                      (maximum 5 MB).
+                    </p>
+                  </div>
+
+                  {paymentScreenshot && (
+                    <div className="rounded-xl border border-white/10 bg-[#050817] p-3">
+                      <p className="mb-2 text-xs text-[#a6b4c8]">
+                        Selected screenshot
+                      </p>
+
+                      <p className="truncate text-sm text-white">
+                        {paymentScreenshot.name}
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={paymentSubmitting}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#f4c34e] px-5 py-3 font-bold text-[#101827] transition hover:bg-[#e6b638] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {paymentSubmitting
+                      ? "Submitting payment proof..."
+                      : "Submit Payment Proof"}
+                  </button>
+                </form>
               </section>
             </>
           )}

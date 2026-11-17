@@ -32,6 +32,9 @@ import { configureScoringSocket } from "./socket/scoringSocket.js";
 
 import adminManagementRoutes from "./routes/adminManagement.routes.js";
 
+import playerPaymentRoutes from "./routes/playerPayment.routes.js";
+import adminPaymentRoutes from "./routes/adminPayment.routes.js";
+
 import { notFound, errorHandler } from "./middleware/error.js";
 
 // use this where ever necessary
@@ -98,6 +101,8 @@ app.use("/api/saas", saasRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/admin", adminManagementRoutes);
 
+app.use("/api/player-payment", playerPaymentRoutes);
+app.use("/api/admin/payments", adminPaymentRoutes);
 // Error handling
 app.use(notFound);
 app.use(errorHandler);

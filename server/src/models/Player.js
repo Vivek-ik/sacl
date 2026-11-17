@@ -60,6 +60,48 @@ const playerSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    paymentVerificationStatus: {
+      type: String,
+      enum: ["not_submitted", "submitted", "approved", "rejected"],
+      default: "not_submitted",
+      index: true,
+    },
+
+    paymentUtr: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    paymentScreenshot: {
+      type: String,
+    },
+
+    paymentScreenshotPublicId: {
+      tyepe: String,
+    },
+    paymentSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+
+    paymentReviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    paymentReviewedAt: {
+      type: Date,
+      default: null,
+    },
+
+    paymentRejectionReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
