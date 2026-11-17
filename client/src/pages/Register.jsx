@@ -495,9 +495,12 @@ export default function Register() {
                     </h3>
 
                     <img
-                      src="/public/images/sacl-payment-qr.jpeg"
+                      src="/images/sacl-payment-qr.jpeg"
                       alt="SACL registration payment QR code"
                       className="mx-auto aspect-square w-full max-w-[250px] rounded-lg object-contain"
+                      onError={(e) => {
+                        console.error("QR image failed:", e.currentTarget.src);
+                      }}
                     />
 
                     <p className="mt-3 text-xs text-slate-500">
