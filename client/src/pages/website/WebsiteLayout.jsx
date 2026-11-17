@@ -142,7 +142,7 @@ export function Intro({ tag, title, desc }) {
 }
 export function CTA() {
   return (
-    <section className="bg-leaf py-14 text-white">
+    <section className="bg-leaf py-14 text-white p-20">
       <div className="wrap flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
           <p className="text-xs uppercase tracking-widest text-white/60">
@@ -151,7 +151,7 @@ export function CTA() {
           <h2 className="mt-2 text-3xl font-black">Talk to the Arohan team.</h2>
         </div>
         <Link
-          className="rounded-full bg-white px-6 py-3 font-bold text-forest"
+          className="rounded-full px-6 py-3 font-bold text-forest"
           to="/contact"
         >
           Contact us ↗

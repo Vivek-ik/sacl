@@ -13,7 +13,7 @@ function Eyebrow({ children }) {
 export default function Home() {
   return (
     <>
-    <Navbar/>
+      <Navbar />
       <section className="bg-forest text-white p-20">
         <div className="wrap grid min-h-[620px] items-center gap-12 py-20 lg:grid-cols-2">
           <div>
@@ -74,7 +74,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="section">
+      <section className="section p-20">
         <div className="wrap">
           <Eyebrow>What we do</Eyebrow>
           <h2 className="heading">Two pathways. One commitment to progress.</h2>
@@ -83,7 +83,7 @@ export default function Home() {
               icon={<Sun />}
               title="Solar equipment & solutions"
               desc="Explore solar equipment options, request product information and connect with our team for recommendations and quotations."
-              to="/services"
+              to="https://arohanmp.in"
               action="Explore solar"
             />
             <Tile
@@ -96,7 +96,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="section bg-cream">
+      <section className="section bg-cream p-20">
         <div className="wrap">
           <h2 className="heading">Clear information at every step.</h2>
           <div className="mt-8 grid grid-cols-2 gap-3">
@@ -106,10 +106,7 @@ export default function Home() {
               "Accessible support",
               "Published policies",
             ].map((x) => (
-              <div
-                className="flex gap-2 rounded-xl  p-4 font-semibold"
-                key={x}
-              >
+              <div className="flex gap-2 rounded-xl  p-4 font-semibold" key={x}>
                 <CheckCircle2 className="text-leaf" />
                 {x}
               </div>
