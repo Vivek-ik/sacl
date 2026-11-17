@@ -34,7 +34,7 @@ export default function Login() {
           : getDashboardPath(user);
 
       nav(redirectPath, { replace: true });
-      navigate("/", { replace: true });
+      // navigate("/", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {
@@ -42,12 +42,12 @@ export default function Login() {
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      console.log("User already logged in, redirecting to dashboard", user);
-      return nav("/");
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user) {
+  //     console.log("User already logged in, redirecting to dashboard", user);
+  //     return nav("/");
+  //   }
+  // }, [user]);
   return (
     <div className="grid min-h-screen place-items-center bg-pitch p-5">
       <form
