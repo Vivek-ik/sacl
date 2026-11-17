@@ -48,7 +48,6 @@ function Protected({ children, roles }) {
 
   return <Layout>{children}</Layout>;
 }
-
 function HomeDashboard() {
   const { user } = useAuth();
 
@@ -56,11 +55,33 @@ function HomeDashboard() {
     return <SuperAdminDashboard />;
   }
 
-  // if (user?.role === "org_admin") {
-  //   return <OrganizerDashboard />;
-  // }
+  if (user?.role === "org_admin") {
+    return <Tournaments />;
+  }
+
+  if (user?.role === "scorer") {
+    return <ScorerDashboard />;
+  }
+
+  if (user?.role === "team_owner") {
+    return <Dashboard />;
+  }
 
   return <Dashboard />;
+}
+
+function HomeRoute() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Landing />;
+  }
+
+  return (
+    <Protected>
+      <HomeDashboard />
+    </Protected>
+  );
 }
 
 function AppRoutes() {
@@ -68,17 +89,15 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-
       {/* Role-based home dashboard */}
-      {/* <Route
+      <Route
         path="/"
         element={
           <Protected>
             <HomeDashboard />
           </Protected>
         }
-      /> */}
-
+      />
       {/* Super Admin */}
       <Route
         path="/super-admin/organizations"
@@ -88,7 +107,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/super-admin/users"
         element={
@@ -97,7 +115,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/super-admin/payments"
         element={
@@ -106,7 +123,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/super-admin/subscriptions"
         element={
@@ -115,7 +131,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/super-admin/plans"
         element={
@@ -124,7 +139,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       {/* Organizer */}
       <Route
         path="/organizer/tournaments"
@@ -134,7 +148,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/organizer/teams"
         element={
@@ -143,7 +156,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/organizer/players"
         element={
@@ -152,7 +164,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/organizer/matches"
         element={
@@ -161,7 +172,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       {/* Existing SACL screens: retain legacy admin access */}
       <Route
         path="/registration"
@@ -171,7 +181,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/auction"
         element={
@@ -180,7 +189,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/team"
         element={
@@ -189,7 +197,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/admin"
         element={
@@ -198,7 +205,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/scorers"
         element={
@@ -207,7 +213,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/admin/matches"
         element={
@@ -216,7 +221,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/scorer"
         element={
@@ -225,12 +229,10 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       {/* Public live score pages */}
       <Route path="/live" element={<LiveMatches />} />
       <Route path="/live/:matchId" element={<LiveMatch />} />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<HomeRoute />} />{" "}
       <Route
         path="/organizer/staff"
         element={
@@ -239,7 +241,6 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route
         path="/super-admin/organizations/create"
         element={
@@ -248,13 +249,12 @@ function AppRoutes() {
           </Protected>
         }
       />
-
       <Route path="/organization/register" element={<OrganizationRegister />} />
       {/* Public tournament discovery */}
       <Route path="/tournaments" element={<PublicTournaments />} />
-
       <Route path="/tournaments/:id" element={<TournamentDetails />} />
       <Route path="/" element={<Landing />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

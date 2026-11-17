@@ -34,7 +34,8 @@ import { notFound, errorHandler } from "./middleware/error.js";
 // router.use(requireSubscription);
 
 const app = express();
-
+// Trust the reverse proxy
+app.set("trust proxy", 1);
 app.use(helmet());
 
 app.use(

@@ -11,13 +11,13 @@ import Team from "../models/Team.js";
 import Player from "../models/Player.js";
 
 const router = Router();
-router.use(protect, allowRoles("admin"));
+router.use(protect, allowRoles("admin", "super_admin", "org_admin"));
 router.get("/applications", listApplications);
 router.patch("/applications/:entity/:id", reviewApplication);
 
 // Admin-only middleware
 const adminOnly = (req, res, next) => {
-  if (req.user?.role !== "admin") {
+  if (req.user?.role !== "admin" || req.user?.role === "super_admin" || req.user?.role === "org_admin") {
     return res.status(403).json({
       success: false,
       message: "Admin access required",
@@ -28,7 +28,7 @@ const adminOnly = (req, res, next) => {
 };
 
 // GET /api/admin/scorers
-router.get("/scorers", protect, adminOnly, async (req, res, next) => {
+router.get("/scorers", protect, async (req, res, next) => {
   try {
     const scorers = await User.find({ role: "scorer" })
       .select("-password")

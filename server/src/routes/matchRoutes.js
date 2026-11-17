@@ -24,10 +24,10 @@ r.use(protect);
 r.use(requireOrganization);
 
 // Organization admins and existing legacy admins
-const admin = allowRoles("org_admin", "admin");
+const admin = allowRoles("super_admin", "org_admin", "admin");
 
 // Scorers and admins
-const scorer = allowRoles("org_admin", "admin", "scorer");
+const scorer = allowRoles("super_admin", "org_admin", "admin", "scorer");
 
 r.get("/", scorer, listMatches);
 

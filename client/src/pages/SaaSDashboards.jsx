@@ -58,8 +58,8 @@ function ErrorState({ message, onRetry }) {
 
 function DataTable({ columns, rows, emptyTitle, emptyDescription, renderRow }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-white/10">
-      <table className="w-full min-w-[700px] text-left text-sm">
+    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-white/10 [&>table]:whitespace-nowrap">
+      <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-white/[0.04] text-xs uppercase text-emerald-100/50">
           <tr>
             {columns.map((column) => (
@@ -116,33 +116,37 @@ const formatCurrency = (value) =>
 
 function PageHeader({ title, description, action }) {
   return (
-    <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div className="mb-6 flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
-        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+        <h1 className="break-words text-2xl font-black tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-1 text-sm text-emerald-100/50">{description}</p>
+        <p className="mt-1 break-words text-sm text-emerald-100/50">
+          {description}
+        </p>
       </div>
 
-      {action}
+      {action && <div className="w-full min-w-0 sm:w-auto">{action}</div>}
     </div>
   );
 }
 
 function StatCard({ title, value = "—", icon: Icon, description }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0b211a] p-5">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-emerald-100/50">{title}</p>
-          <h2 className="mt-3 text-3xl font-black tracking-tight">{value}</h2>
+          <h2 className="mt-3 break-words text-2xl font-black tracking-tight sm:text-3xl">
+            {value}
+          </h2>
           {description && (
             <p className="mt-2 text-xs text-emerald-100/40">{description}</p>
           )}
         </div>
 
-        <div className="rounded-xl bg-lime/10 p-3 text-lime">
-          <Icon size={22} />
+        <div className="shrink-0 rounded-xl bg-lime/10 p-2.5 text-lime sm:p-3">
+          <Icon size={20} className="sm:h-[22px] sm:w-[22px]" />
         </div>
       </div>
     </div>
@@ -151,8 +155,8 @@ function StatCard({ title, value = "—", icon: Icon, description }) {
 
 function Panel({ title, children, action }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#0b211a] p-5">
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-5">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-bold">{title}</h3>
         {action}
       </div>
@@ -182,7 +186,7 @@ function SearchBar({ placeholder = "Search..." }) {
       />
       <input
         placeholder={placeholder}
-        className="w-full rounded-xl border border-white/10 bg-[#071b16] py-2.5 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50"
+        className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
       />
     </div>
   );
@@ -190,9 +194,9 @@ function SearchBar({ placeholder = "Search..." }) {
 
 function TableShell({ columns, emptyTitle, emptyDescription }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[650px] text-left text-sm">
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-white/10">
+      <div className="max-w-full overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[620px] text-left text-sm">
           <thead className="bg-white/[0.04] text-xs uppercase tracking-wider text-emerald-100/50">
             <tr>
               {columns.map((column) => (
@@ -214,7 +218,7 @@ function PrimaryButton({ children, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center justify-center gap-2 rounded-xl bg-lime px-4 py-2.5 text-sm font-bold text-[#071b16] transition hover:bg-lime/90"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-[#071b16] transition hover:bg-lime/90 sm:w-auto sm:py-2.5"
     >
       <Plus size={17} />
       {children}
@@ -250,7 +254,7 @@ export function SuperAdminDashboard() {
   }, []);
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Platform Overview"
         description="Monitor your SACL platform and registered organizations."
@@ -262,7 +266,7 @@ export function SuperAdminDashboard() {
         <ErrorState message={error} onRetry={fetchDashboard} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-3">
             <StatCard
               title="Total Organizations"
               value={stats?.totalOrganizations ?? 0}
@@ -362,24 +366,24 @@ export function Organizations() {
   });
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Organizations"
         description="Manage all cricket associations and tournament organizers."
       />
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search organization name or slug..."
-          className="w-full rounded-xl border border-white/10 bg-[#071b16] px-4 py-2.5 text-sm outline-none sm:max-w-xs"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
         />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm sm:w-auto"
         >
           <option value="all">All statuses</option>
           <option value="active">Active</option>
@@ -440,16 +444,16 @@ export function Organizations() {
 
 export function PlatformUsers() {
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Platform Users"
         description="View users across all SACL organizations."
       />
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search by name, email or phone..." />
 
-        <select className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All roles</option>
           <option>Organization Admin</option>
           <option>Auctioneer</option>
@@ -480,22 +484,22 @@ export function PlatformUsers() {
 
 export function Payments() {
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Payments"
         description="Track subscription payments and transaction history."
       />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
         <StatCard title="Total Payments" icon={CreditCard} />
         <StatCard title="Successful Payments" icon={ShieldCheck} />
         <StatCard title="Failed Payments" icon={Wallet} />
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search transaction or organization..." />
 
-        <select className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All payment statuses</option>
           <option>Success</option>
           <option>Pending</option>
@@ -547,7 +551,7 @@ export function Subscriptions() {
   }, []);
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="My Subscription"
         description="View your organization's current subscription."
@@ -564,7 +568,7 @@ export function Subscriptions() {
         />
       ) : (
         <Panel title="Current Subscription">
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <p className="text-xs text-emerald-100/40">Plan</p>
               <p className="mt-1 text-xl font-bold">
@@ -626,7 +630,7 @@ export function Plans() {
     `₹${(Number(paise || 0) / 100).toLocaleString("en-IN")}`;
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Plans & Pricing"
         description="View subscription plans offered to SACL organizations."
@@ -642,11 +646,11 @@ export function Plans() {
           description="No subscription plans have been configured yet."
         />
       ) : (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-3">
           {plans.map((plan) => (
             <div
               key={plan._id}
-              className="rounded-2xl border border-white/10 bg-[#0b211a] p-6"
+              className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-6"
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -713,9 +717,9 @@ export function Plans() {
                     ([feature, enabled]) => (
                       <div
                         key={feature}
-                        className="flex items-center justify-between"
+                        className="flex min-w-0 items-center justify-between gap-3"
                       >
-                        <span className="capitalize text-emerald-100/60">
+                        <span className="min-w-0 break-words capitalize text-emerald-100/60">
                           {feature.replace(/([A-Z])/g, " $1")}
                         </span>
 
@@ -834,7 +838,7 @@ export function Tournaments() {
   ).length;
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Tournaments"
         description="Create and manage your cricket tournaments."
@@ -846,7 +850,7 @@ export function Tournaments() {
       />
 
       {/* Stats */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
         <StatCard
           title="Total Tournaments"
           value={totalTournaments}
@@ -867,7 +871,7 @@ export function Tournaments() {
       </div>
 
       {/* Search and filter */}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <div className="relative w-full sm:max-w-xs">
           <Search
             size={17}
@@ -878,7 +882,7 @@ export function Tournaments() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tournaments..."
-            className="w-full rounded-xl border border-white/10 bg-[#071b16] py-2.5 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50"
+            className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
           />
         </div>
 
@@ -896,7 +900,7 @@ export function Tournaments() {
 
         <button
           onClick={fetchTournaments}
-          className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 hover:bg-white/5"
+          className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 hover:bg-white/5 sm:w-auto"
         >
           Refresh
         </button>
@@ -929,8 +933,8 @@ export function Tournaments() {
             description="Create your first tournament to start managing teams, players and matches."
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full min-w-[750px] text-left text-sm">
+          <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-white/10">
+            <table className="w-full min-w-[700px] text-left text-sm">
               <thead className="bg-white/[0.04] text-xs uppercase tracking-wider text-emerald-100/50">
                 <tr>
                   {[
@@ -1022,27 +1026,27 @@ export function Tournaments() {
 
 export function TeamsManagement() {
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Teams"
         description="Manage participating teams across your tournaments."
       />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total Teams" icon={ShieldCheck} />
         <StatCard title="Approved Teams" icon={UserCheck} />
         <StatCard title="Pending Approval" icon={Users} />
         <StatCard title="Available Slots" icon={Trophy} />
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search team name or owner..." />
 
-        <select className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All tournaments</option>
         </select>
 
-        <select className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All statuses</option>
           <option>Approved</option>
           <option>Pending</option>
@@ -1072,23 +1076,23 @@ export function TeamsManagement() {
 
 export function PlayersManagement() {
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Players"
         description="Manage player registrations, approvals and auction eligibility."
       />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Registered Players" icon={Users} />
         <StatCard title="Approved Players" icon={UserCheck} />
         <StatCard title="Pending Approval" icon={ShieldCheck} />
         <StatCard title="Auctioned Players" icon={Trophy} />
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search player name..." />
 
-        <select className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All categories</option>
           <option>ICONIC</option>
           <option>A</option>
@@ -1156,13 +1160,13 @@ export function OrganizerMatches() {
       .length;
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         title="Matches"
         description="View fixtures and manage tournament matches."
       />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Matches"
           value={matches.length}
@@ -1190,7 +1194,7 @@ export function OrganizerMatches() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search matches or teams..."
-          className="w-full rounded-xl border border-white/10 bg-[#071b16] px-4 py-2.5 text-sm outline-none sm:max-w-xs"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
         />
       </div>
 

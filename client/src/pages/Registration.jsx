@@ -39,6 +39,10 @@ export default function Registration() {
   const [teams, setTeams] = useState([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
+  const [tournaments, setTournaments] = useState([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(false);
+  const [selectedTournamentId, setSelectedTournamentId] = useState("");
+
   const [form, setForm] = useState({
     fullName: user?.name || "",
     category: "C",
@@ -67,6 +71,30 @@ export default function Registration() {
     }
   }, [isTeamOwner]);
 
+  async function loadTournaments() {
+    setTournamentsLoading(true);
+
+    try {
+      const response = await api.get("/public/tournaments");
+
+      const list = Array.isArray(response.data)
+        ? response.data
+        : response.data?.tournaments || response.data?.data || [];
+
+      setTournaments(list);
+
+      // Automatically select if only one tournament exists
+      if (list.length === 1) {
+        setSelectedTournamentId(list[0]._id);
+      }
+    } catch (error) {
+      console.error("Failed to load tournaments:", error);
+      setTournaments([]);
+    } finally {
+      setTournamentsLoading(false);
+    }
+  }
+
   async function loadTeams() {
     setTeamsLoading(true);
 
@@ -92,6 +120,7 @@ export default function Registration() {
 
   useEffect(() => {
     load();
+    loadTournaments();
   }, []);
 
   const formatStatus = (value) =>
@@ -146,11 +175,13 @@ export default function Registration() {
     try {
       const payload = isTeamOwner
         ? {
+            tournamentId: selectedTournamentId,
             name: form.name,
             coOwnerName: form.coOwnerName,
             coOwnerPhone: form.coOwnerPhone,
           }
         : {
+            tournamentId: selectedTournamentId,
             fullName: form.fullName,
             category: form.category,
             role: form.role,
@@ -159,7 +190,6 @@ export default function Registration() {
             preferredJerseyNumber: Number(form.preferredJerseyNumber),
             preferredTeamId: form.preferredTeamId,
           };
-
       await api.post(`/registrations/${kind}`, payload);
 
       setMsg("Application submitted successfully. Pending admin approval.");
@@ -198,6 +228,39 @@ export default function Registration() {
 
             {isTeamOwner ? (
               <>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium">
+                    Select Tournament
+                  </label>
+
+                  <select
+                    value={selectedTournamentId}
+                    onChange={(e) => setSelectedTournamentId(e.target.value)}
+                    required
+                    disabled={tournamentsLoading || tournaments.length === 0}
+                    className={inputClass}
+                  >
+                    <option value="">
+                      {tournamentsLoading
+                        ? "Loading tournaments..."
+                        : tournaments.length === 0
+                          ? "No tournaments available"
+                          : "Select tournament"}
+                    </option>
+
+                    {tournaments.map((tournament) => (
+                      <option key={tournament._id} value={tournament._id}>
+                        {tournament.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {tournaments.length === 1 && (
+                    <p className="mt-2 text-xs text-lime">
+                      Your tournament has been automatically selected.
+                    </p>
+                  )}
+                </div>
                 <label className="mt-4 block text-sm">
                   Team name
                   <input
@@ -244,6 +307,39 @@ export default function Registration() {
               </>
             ) : (
               <>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium">
+                    Select Tournament
+                  </label>
+
+                  <select
+                    value={selectedTournamentId}
+                    onChange={(e) => setSelectedTournamentId(e.target.value)}
+                    required
+                    disabled={tournamentsLoading || tournaments.length === 0}
+                    className={inputClass}
+                  >
+                    <option value="">
+                      {tournamentsLoading
+                        ? "Loading tournaments..."
+                        : tournaments.length === 0
+                          ? "No tournaments available"
+                          : "Select tournament"}
+                    </option>
+
+                    {tournaments.map((tournament) => (
+                      <option key={tournament._id} value={tournament._id}>
+                        {tournament.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {tournaments.length === 1 && (
+                    <p className="mt-2 text-xs text-lime">
+                      Your tournament has been automatically selected.
+                    </p>
+                  )}
+                </div>
                 <label className="mt-4 block text-sm">
                   Player full name
                   <input

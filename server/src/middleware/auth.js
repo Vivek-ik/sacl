@@ -21,6 +21,8 @@ export async function protect(req, res, next) {
 export const allowRoles =
   (...roles) =>
   (req, res, next) => {
+    console.log("req.user.role", req.user.role);
+    
     if (!req.user || !roles.includes(req.user.role))
       return res.status(403).json({ message: "Forbidden" });
     next();

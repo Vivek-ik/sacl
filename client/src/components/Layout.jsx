@@ -60,7 +60,7 @@ const teamOwnerLinks = [
 const scorerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/scorer", label: "Scoring Dashboard", icon: Radio },
-  { to: "/live", label: "Live Scoreboard", icon: Activity },
+  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 const playerLinks = [
@@ -132,7 +132,7 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-5 md:grid-cols-[230px_minmax(0,1fr)]">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-5 md:flex-row">
         <aside className="h-fit rounded-2xl border border-white/10 bg-[#0b211a] p-3 md:sticky md:top-[90px]">
           <p className="mb-3 px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-100/40">
             {user?.role === "super_admin"

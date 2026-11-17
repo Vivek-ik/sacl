@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDashboardPath } from "../lib/authRedirect";
@@ -6,11 +6,11 @@ import { getDashboardPath } from "../lib/authRedirect";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("12345678");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
 
@@ -34,6 +34,7 @@ export default function Login() {
           : getDashboardPath(user);
 
       nav(redirectPath, { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     } finally {
@@ -41,6 +42,12 @@ export default function Login() {
     }
   }
 
+  useEffect(() => {
+    if (user) {
+      console.log("User already logged in, redirecting to dashboard", user);
+      return nav("/");
+    }
+  }, [user]);
   return (
     <div className="grid min-h-screen place-items-center bg-pitch p-5">
       <form

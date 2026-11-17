@@ -24,7 +24,7 @@ async function getTournamentAvailability(tournament) {
 export async function getPublicTournaments(req, res, next) {
   try {
     const tournaments = await Tournament.find({
-      status: { $in: ["upcoming", "active"] },
+      status: { $in: ["draft","upcoming", "active"] },
     })
       .select(publicFields)
       .populate("organization", "name")
