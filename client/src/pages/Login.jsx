@@ -1,53 +1,49 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDashboardPath } from "../lib/authRedirect";
-// import { getDashboardPath } from "../utils/authRedirect";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("12345678");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const { login, user } = useAuth();
+  const { login } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
 
   async function submit(e) {
     e.preventDefault();
+
+    if (busy) return;
+
     setBusy(true);
     setError("");
 
     try {
-      await login(email, password);
+      await login(identifier.trim(), password);
 
-      const user = JSON.parse(localStorage.getItem("sacl_user"));
+      const loggedInUser = JSON.parse(localStorage.getItem("sacl_user"));
 
       const requestedPath = location.state?.from;
 
-      // Only preserve public tournament destinations here.
       const redirectPath =
-        user?.role === "team_owner" &&
+        loggedInUser?.role === "team_owner" &&
         requestedPath?.startsWith("/tournaments/")
           ? requestedPath
-          : getDashboardPath(user);
+          : getDashboardPath(loggedInUser);
 
       nav(redirectPath, { replace: true });
-      // navigate("/", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(
+        err.response?.data?.message || "Login failed. Please try again.",
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  // useEffect(() => {
-  //   if (user) {
-  //     console.log("User already logged in, redirecting to dashboard", user);
-  //     return nav("/");
-  //   }
-  // }, [user]);
   return (
     <div className="grid min-h-screen place-items-center bg-pitch p-5">
       <form
@@ -69,12 +65,14 @@ export default function Login() {
         )}
 
         <label className="mt-6 block text-sm">
-          Email
+          Email or Phone Number
           <input
             required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            autoComplete="username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Enter email or phone number"
             className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 outline-none focus:border-lime"
           />
         </label>
@@ -84,15 +82,18 @@ export default function Login() {
           <input
             required
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
             className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 outline-none focus:border-lime"
           />
         </label>
 
         <button
+          type="submit"
           disabled={busy}
-          className="mt-6 w-full rounded-xl bg-lime py-3 font-black text-pitch disabled:opacity-60"
+          className="mt-6 w-full rounded-xl bg-lime py-3 font-black text-pitch disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? "Signing in..." : "Sign in"}
         </button>
