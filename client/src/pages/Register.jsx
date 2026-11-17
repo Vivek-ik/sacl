@@ -226,7 +226,11 @@ export default function Register() {
       setBusy(false);
     }
   }
-
+  const REGISTRATION_FEES = {
+    player: 1200,
+    team_owner: 15000,
+  };
+  const registrationFee = REGISTRATION_FEES[form.role];
   return (
     <div className="min-h-screen bg-[#050817] px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-3xl">
@@ -326,6 +330,37 @@ export default function Register() {
                 <option value="team_owner">Team Owner</option>
               </select>
             </label>
+          </section>
+
+          {/* REGISTRATION FEE */}
+          <section className="mt-6 rounded-2xl border border-[#f4c34e]/30 bg-[#f4c34e]/10 p-5">
+            <p className="text-sm font-semibold text-[#c0ccdc]">
+              {form.role === "player"
+                ? "Player Registration Fee"
+                : "Team Owner Registration Fee"}
+            </p>
+
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-3xl font-black text-[#f4c34e]">
+                  ₹{registrationFee.toLocaleString("en-IN")}
+                </p>
+
+                <p className="mt-1 text-xs text-[#a6b4c8]">
+                  One-time registration fee
+                </p>
+              </div>
+
+              <span className="rounded-full bg-[#f4c34e]/15 px-3 py-2 text-xs font-bold text-[#f4c34e]">
+                {form.role === "player" ? "PLAYER" : "TEAM OWNER"}
+              </span>
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-[#c0ccdc]">
+              Please pay the exact amount shown above using the official SACL QR
+              code. Your registration will be verified after payment
+              confirmation.
+            </p>
           </section>
 
           {form.role === "player" && (
@@ -476,9 +511,13 @@ export default function Register() {
                     <h2 className="text-lg font-bold text-[#f4c34e]">
                       3. Registration Payment
                     </h2>
+
                     <p className="mt-1 text-sm text-[#a6b4c8]">
-                      Scan the official SACL QR code to complete your
-                      registration payment.
+                      Scan the official SACL QR code and pay{" "}
+                      <strong className="text-[#f4c34e]">
+                        ₹{registrationFee.toLocaleString("en-IN")}
+                      </strong>{" "}
+                      to complete your registration.
                     </p>
                   </div>
 
