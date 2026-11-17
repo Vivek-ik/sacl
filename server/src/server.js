@@ -32,7 +32,6 @@ import { configureScoringSocket } from "./socket/scoringSocket.js";
 
 import adminManagementRoutes from "./routes/adminManagement.routes.js";
 
-
 import { notFound, errorHandler } from "./middleware/error.js";
 
 // use this where ever necessary
@@ -43,9 +42,21 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""));
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL?.split(",") || ["http://localhost:5173"],
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header (e.g. server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.error("Blocked CORS origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
