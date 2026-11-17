@@ -18,6 +18,7 @@ import {
   Wallet,
   UserCheck,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const tabs = ["Overview", "Player", "Team Owner", "Auctioneer", "Admin"];
 
@@ -186,8 +187,10 @@ const colorClasses = {
   green: "bg-emerald-400/10 text-emerald-300",
 };
 
-function PortalCard({ card }) {
+function PortalCard({ card, onRegistration }) {
   const Icon = card.icon;
+
+  const isRegistration = card.to === "/register" || card.to === "/registration";
 
   return (
     <div className="group flex flex-col rounded-2xl border border-white/10 bg-[#17283e] p-5 transition duration-300 hover:-translate-y-1 hover:border-amber-400/50 hover:bg-[#1b304a]">
@@ -207,6 +210,12 @@ function PortalCard({ card }) {
 
       <Link
         to={card.to}
+        onClick={(e) => {
+          if (isRegistration) {
+            e.preventDefault();
+            onRegistration();
+          }
+        }}
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-300"
       >
         {card.action}
@@ -234,13 +243,23 @@ function StatCard({ icon: Icon, label, value, detail }) {
 }
 
 export default function Landing() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState("Overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const current = portalContent[activeTab];
 
-  const navigate = useNavigate();
-
+  const handleRegistration = () => {
+    if (user) {
+      navigate("/registration");
+    } else {
+      navigate("/login", {
+        state: { from: "/registration" },
+      });
+    }
+  };
   const selectTab = (tab) => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
@@ -452,7 +471,11 @@ export default function Landing() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {current.cards.map((card) => (
-              <PortalCard key={card.title} card={card} />
+              <PortalCard
+                key={card.title}
+                card={card}
+                onRegistration={handleRegistration}
+              />
             ))}
           </div>
         </section>

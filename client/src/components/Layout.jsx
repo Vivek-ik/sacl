@@ -54,7 +54,7 @@ const teamOwnerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/team", label: "My Team", icon: ShieldCheck },
-  { to: "/live", label: "Live Scoreboard", icon: Activity },
+  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 const scorerLinks = [
@@ -66,7 +66,7 @@ const scorerLinks = [
 const playerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
-  { to: "/live", label: "Live Scoreboard", icon: Activity },
+  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 export default function Layout({ children }) {
