@@ -86,7 +86,7 @@ export default function CreateOrganization() {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`w-full rounded-xl border border-white/10 bg-[#071b16] py-3 pr-4 text-sm outline-none transition focus:border-lime/50 ${Icon ? "pl-10" : "pl-4"}`}
+          className={`w-full rounded-xl border border-white/10 bg-[#050817] py-3 pr-4 text-sm outline-none transition focus:border-lime/50 ${Icon ? "pl-10" : "pl-4"}`}
         />
       </div>
     </div>
@@ -123,7 +123,7 @@ export default function CreateOrganization() {
               className={`rounded-xl border p-4 ${
                 step === item.number
                   ? "border-lime/40 bg-lime/[0.07]"
-                  : "border-white/10 bg-[#0b211a]"
+                  : "border-white/10 bg-[#050817]"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function CreateOrganization() {
         })}
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#0b211a] p-5 sm:p-8">
+      <div className="rounded-2xl border border-white/10 bg-[#050817] p-5 sm:p-8">
         {error && (
           <div className="mb-5 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-300">
             {error}
@@ -256,7 +256,7 @@ export default function CreateOrganization() {
                 <select
                   value={form.plan}
                   onChange={(e) => update("plan", e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none focus:border-lime/50"
+                  className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none focus:border-lime/50"
                 >
                   <option value="basic">Basic</option>
                   <option value="standard">Standard</option>
@@ -270,7 +270,7 @@ export default function CreateOrganization() {
                 <select
                   value={form.billingCycle}
                   onChange={(e) => update("billingCycle", e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none focus:border-lime/50"
+                  className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none focus:border-lime/50"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>

@@ -78,8 +78,8 @@ export const createTournament = async (req, res, next) => {
       teamLimit: teams,
       squadSize: squad,
       purseTotal: purse,
-      // Do not allow the browser to create an already-live tournament.
       status: status === "upcoming" ? "upcoming" : "draft",
+      approvalStatus: "pending",
       auctionStatus: "pending",
     });
 
@@ -139,6 +139,281 @@ export const getTournamentById = async (req, res, next) => {
 
     return res.json({ success: true, tournament });
   } catch (error) {
+    next(error);
+  }
+};
+
+// APPROVE TOURNAMENT
+
+export const approveTournament = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tournament ID.",
+      });
+    }
+
+    const tournament = await Tournament.findOne({
+      _id: id,
+      organization: req.organizationId,
+    });
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: "Tournament not found.",
+      });
+    }
+
+    if (tournament.approvalStatus !== "pending") {
+      return res.status(409).json({
+        success: false,
+        message: `Tournament is already ${tournament.approvalStatus}.`,
+      });
+    }
+
+    tournament.approvalStatus = "approved";
+    await tournament.save();
+
+    return res.json({
+      success: true,
+      message: "Tournament approved successfully.",
+      tournament,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// REJECT TOURNAMENT
+export const rejectTournament = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tournament ID.",
+      });
+    }
+
+    const tournament = await Tournament.findOne({
+      _id: id,
+      organization: req.organizationId,
+    });
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: "Tournament not found.",
+      });
+    }
+
+    if (tournament.approvalStatus !== "pending") {
+      return res.status(409).json({
+        success: false,
+        message: `Tournament is already ${tournament.approvalStatus}.`,
+      });
+    }
+
+    tournament.approvalStatus = "rejected";
+
+    await tournament.save();
+
+    return res.json({
+      success: true,
+      message: "Tournament rejected successfully.",
+      tournament,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// EDIT TOURNAMENT
+export const updateTournament = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tournament ID.",
+      });
+    }
+
+    const tournament = await Tournament.findOne({
+      _id: id,
+      organization: req.organizationId,
+    });
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: "Tournament not found.",
+      });
+    }
+
+    // Only these fields can be edited.
+    // approvalStatus, organization, createdBy and auctionStatus
+    // cannot be changed through this endpoint.
+    const allowedFields = [
+      "name",
+      "season",
+      "description",
+      "format",
+      "startDate",
+      "endDate",
+      "venue",
+      "city",
+      "teamLimit",
+      "squadSize",
+      "purseTotal",
+      "status",
+    ];
+
+    const updates = {};
+
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    // Validate name
+    if (updates.name !== undefined) {
+      if (typeof updates.name !== "string" || !updates.name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Tournament name is required.",
+        });
+      }
+
+      updates.name = updates.name.trim();
+    }
+
+    // Normalize optional text fields
+    for (const field of ["season", "description", "venue", "city"]) {
+      if (updates[field] !== undefined) {
+        if (typeof updates[field] !== "string") {
+          return res.status(400).json({
+            success: false,
+            message: `${field} must be text.`,
+          });
+        }
+
+        updates[field] = updates[field].trim();
+      }
+    }
+
+    // Validate format
+    if (updates.format !== undefined) {
+      const allowedFormats = ["T10", "T20", "ODI", "TEST"];
+
+      if (!allowedFormats.includes(updates.format)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid tournament format.",
+        });
+      }
+    }
+
+    // Validate dates using existing values when only one date is updated
+    const start = new Date(updates.startDate ?? tournament.startDate);
+
+    const end = new Date(updates.endDate ?? tournament.endDate);
+
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end < start
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid tournament dates.",
+      });
+    }
+
+    if (updates.startDate !== undefined) {
+      updates.startDate = start;
+    }
+
+    if (updates.endDate !== undefined) {
+      updates.endDate = end;
+    }
+
+    // Validate numeric fields
+    if (updates.teamLimit !== undefined) {
+      const value = Number(updates.teamLimit);
+
+      if (!Number.isInteger(value) || value < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "Team limit must be an integer of at least 2.",
+        });
+      }
+
+      updates.teamLimit = value;
+    }
+
+    if (updates.squadSize !== undefined) {
+      const value = Number(updates.squadSize);
+
+      if (!Number.isInteger(value) || value < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Squad size must be a positive integer.",
+        });
+      }
+
+      updates.squadSize = value;
+    }
+
+    if (updates.purseTotal !== undefined) {
+      const value = Number(updates.purseTotal);
+
+      if (!Number.isFinite(value) || value < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Purse amount must be zero or greater.",
+        });
+      }
+
+      updates.purseTotal = value;
+    }
+
+    // Validate tournament lifecycle status
+    if (updates.status !== undefined) {
+      const allowedStatuses = ["draft", "upcoming", "live", "completed"];
+
+      if (!allowedStatuses.includes(updates.status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid tournament status.",
+        });
+      }
+    }
+
+    Object.assign(tournament, updates);
+
+    await tournament.save();
+
+    return res.json({
+      success: true,
+      message: "Tournament updated successfully.",
+      tournament,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "A tournament with this name and season already exists.",
+      });
+    }
+
     next(error);
   }
 };

@@ -8,12 +8,8 @@ import {
 import { protect, allowRoles } from "../middleware/auth.js";
 import Team from "../models/Team.js";
 const router = Router();
-router.use(protect);
-router.get("/me", myRegistration);
-router.get("/my-applications", allowRoles("team_owner"), myTeamApplications);
-router.post("/player", allowRoles("player"), registerPlayer);
-router.post("/team", allowRoles("team_owner"), registerTeam);
-router.get("/available-teams", protect, async (req, res, next) => {
+
+router.get("/available-teams", async (req, res, next) => {
   try {
     const teams = await Team.find({
       approvalStatus: "approved",
@@ -29,4 +25,10 @@ router.get("/available-teams", protect, async (req, res, next) => {
     next(error);
   }
 });
+
+router.use(protect);
+router.get("/me", myRegistration);
+router.get("/my-applications", allowRoles("team_owner"), myTeamApplications);
+router.post("/player", allowRoles("player"), registerPlayer);
+router.post("/team", allowRoles("team_owner"), registerTeam);
 export default router;

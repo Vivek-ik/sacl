@@ -19,6 +19,14 @@ import LiveMatch from "./pages/LiveMatch";
 import StaffManagement from "./pages/organizer/StaffManagement";
 import CreateOrganization from "./pages/super-admin/CreateOrganization";
 
+import Home from "./pages/website/Home";
+import About from "./pages/website/About";
+import Contact from "./pages/website/Contact";
+import Privacy from "./pages/website/Privacy";
+import Refund from "./pages/website/Refund";
+import Terms from "./pages/website/Terms";
+import TournamentPage from "./pages/website/Tournaments";
+import Services from "./pages/website/Services";
 import {
   SuperAdminDashboard,
   // OrganizerDashboard,
@@ -255,6 +263,13 @@ function AppRoutes() {
       <Route path="/tournaments/:id" element={<TournamentDetails />} />
       <Route path="/" element={<Landing />} />
       <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/home" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/refund" element={<Refund />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/tournament" element={<TournamentPage />} />
     </Routes>
   );
 }

@@ -188,7 +188,6 @@ export default function Registration() {
             battingStyle: form.battingStyle,
             bowlingStyle: form.bowlingStyle,
             preferredJerseyNumber: Number(form.preferredJerseyNumber),
-            preferredTeamId: form.preferredTeamId,
           };
       await api.post(`/registrations/${kind}`, payload);
 
@@ -350,34 +349,7 @@ export default function Registration() {
                     className={inputClass}
                   />
                 </label>
-                <label className="mt-4 block text-sm">
-                  Select Your Preferred Team
-                  <select
-                    name="preferredTeamId"
-                    value={form.preferredTeamId}
-                    onChange={updateField}
-                    required
-                    disabled={teamsLoading || teams.length === 0}
-                    className={inputClass}
-                  >
-                    <option value="">
-                      {teamsLoading
-                        ? "Loading teams..."
-                        : teams.length === 0
-                          ? "No approved teams available"
-                          : "Select your preferred team"}
-                    </option>
 
-                    {teams.map((team) => (
-                      <option key={team._id} value={team._id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-emerald-100/40">
-                    Only administrator-approved teams are available.
-                  </p>
-                </label>
                 <label className="mt-4 block text-sm">
                   Player category
                   <select

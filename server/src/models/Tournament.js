@@ -84,6 +84,12 @@ const tournamentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
   },
   { timestamps: true },
 );

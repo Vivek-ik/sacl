@@ -1,29 +1,98 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getDashboardPath } from "../lib/authRedirect";
-// import { getDashboardPath } from "../utils/authRedirect";
+import { api } from "../lib/api";
+
+const categories = ["ICONIC", "A", "B", "C", "D"];
+
+const playingRoles = ["BATTER", "BOWLER", "ALL_ROUNDER", "WICKET_KEEPER"];
+
+const battingStyles = ["RIGHT_HAND", "LEFT_HAND"];
+
+const bowlingStyles = [
+  "NONE",
+  "RIGHT_ARM_FAST",
+  "RIGHT_ARM_MEDIUM",
+  "RIGHT_ARM_OFF_BREAK",
+  "RIGHT_ARM_LEG_BREAK",
+  "LEFT_ARM_FAST",
+  "LEFT_ARM_MEDIUM",
+  "LEFT_ARM_ORTHODOX",
+  "LEFT_ARM_CHINAMAN",
+];
+
+const inputClass =
+  "mt-2 w-full rounded-xl border border-[#293b55] bg-[#050817] px-4 py-3 text-white outline-none transition focus:border-[#f4c34e]";
+
+const labelClass = "mt-4 block text-sm font-medium text-[#c0ccdc]";
+
+const formatLabel = (value) =>
+  value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function Register() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const [tournaments, setTournaments] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
     role: "player",
+
+    // Player application details
+    fullName: "",
+    tournamentId: "",
+    preferredTeamId: "",
+    category: "C",
+    playingRole: "BATTER",
+    battingStyle: "RIGHT_HAND",
+    bowlingStyle: "NONE",
+    preferredJerseyNumber: "",
   });
 
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    async function loadOptions() {
+      try {
+        const response = await api.get("/public/tournaments");
 
-  const { register } = useAuth();
-  const nav = useNavigate();
-  const location = useLocation();
+        const list = Array.isArray(response.data)
+          ? response.data
+          : response.data?.tournaments || response.data?.data || [];
+
+        setTournaments(list);
+
+        if (list.length === 1) {
+          setForm((prev) => ({
+            ...prev,
+            tournamentId: list[0]._id,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load tournaments:", error);
+        setError("Could not load tournaments.");
+      } finally {
+        setLoadingOptions(false);
+      }
+    }
+
+    loadOptions();
+  }, []);
 
   function change(e) {
+    const { name, value } = e.target;
+
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
+      ...(name === "name" ? { fullName: value } : {}),
     }));
   }
 
@@ -33,95 +102,355 @@ export default function Register() {
     setBusy(true);
 
     try {
-      await register(form);
+      // STEP 1: Create account and log the user in.
+      await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        role: form.role,
+      });
 
-      const user = JSON.parse(localStorage.getItem("sacl_user"));
-      const requestedPath = location.state?.from;
+      const user = JSON.parse(localStorage.getItem("sacl_user") || "null");
 
-      const redirectPath =
-        user?.role === "team_owner" &&
-        requestedPath?.startsWith("/tournaments/")
-          ? requestedPath
-          : getDashboardPath(user);
+      if (!user) {
+        throw new Error("Account created, but user session was not found.");
+      }
 
-      nav(redirectPath, { replace: true });
+      // Team owner continues through the existing team registration flow.
+      if (form.role === "team_owner") {
+        navigate("/registration", { replace: true });
+        return;
+      }
+
+      // STEP 2: Create player application.
+      const playerPayload = {
+        tournamentId: form.tournamentId,
+        fullName: form.fullName || form.name,
+        category: form.category,
+        role: form.playingRole,
+        battingStyle: form.battingStyle,
+        bowlingStyle: form.bowlingStyle,
+        preferredJerseyNumber: Number(form.preferredJerseyNumber),
+      };
+      await api.post("/registrations/player", playerPayload);
+
+      // STEP 3: Create PhonePe payment order.
+      const paymentResponse = await api.post("/payments/registration/create", {
+        kind: "player",
+      });
+
+      const redirectUrl = paymentResponse.data?.redirectUrl;
+
+      if (!redirectUrl) {
+        throw new Error(
+          "Application created, but payment checkout URL was not returned.",
+        );
+      }
+
+      // STEP 4: Redirect to PhonePe.
+      window.location.assign(redirectUrl);
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      console.error("Signup error:", err);
+
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Registration failed. Please try again.";
+
+      setError(message);
+
+      // If the account and application were already created,
+      // take the player to their application instead of asking
+      // them to create another account.
+      const user = JSON.parse(localStorage.getItem("sacl_user") || "null");
+
+      if (user) {
+        // The application may already exist; the application page
+        // should provide a retry payment action.
+        if (err.response?.status !== 401) {
+          // Keep the error visible on the signup page for now.
+        }
+      }
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-pitch p-5">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-md rounded-3xl border border-white/10 bg-panel p-8"
-      >
-        <p className="font-bold text-lime">SACL 2.0</p>
+    <div className="min-h-screen bg-[#050817] px-4 py-8 text-white sm:px-6">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-7 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#f4c34e] text-2xl font-black text-[#101827]">
+            S
+          </div>
 
-        <h1 className="mt-2 text-3xl font-black">Create account</h1>
+          <p className="mt-3 font-bold text-[#f4c34e]">SACL 2.0</p>
 
-        {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+          <h1 className="mt-2 text-3xl font-black">Player Registration</h1>
 
-        {[
-          ["name", "Full name", "text"],
-          ["email", "Email", "email"],
-          ["phone", "Phone number", "tel"],
-          ["password", "Password (8+ characters)", "password"],
-        ].map(([name, label, type]) => (
-          <label key={name} className="mt-4 block text-sm">
-            {label}
-            <input
-              required
-              name={name}
-              type={type}
-              minLength={name === "password" ? 8 : undefined}
-              value={form[name]}
-              onChange={change}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 outline-none focus:border-lime"
-            />
-          </label>
-        ))}
+          <p className="mt-2 text-sm text-[#a6b4c8]">
+            Create your account, complete your player profile and pay your
+            registration fee.
+          </p>
+        </div>
 
-        <label className="mt-4 block text-sm">
-          Register as
-          <select
-            name="role"
-            value={form.role}
-            onChange={change}
-            required
-            className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 text-white outline-none focus:border-lime"
-          >
-            <option value="player">Player</option>
-            <option value="team_owner">Team Owner</option>
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-6 w-full rounded-xl bg-lime py-3 font-black text-pitch disabled:opacity-60"
+        <form
+          onSubmit={submit}
+          className="rounded-3xl border border-[#293b55] bg-[#0d192c] p-5 shadow-2xl sm:p-8"
         >
-          {busy
-            ? "Creating account..."
-            : `Create ${form.role === "player" ? "player" : "team owner"} account`}
-        </button>
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
 
-        <p className="mt-4 text-center text-sm text-emerald-100/60">
-          Already registered?{" "}
-          <Link className="text-lime" to="/login">
-            Sign in
-          </Link>
-        </p>
+          {/* ACCOUNT DETAILS */}
+          <section>
+            <h2 className="text-lg font-bold text-[#f4c34e]">
+              1. Account Details
+            </h2>
 
-        <p className="mt-4 text-center text-sm text-emerald-100/60">
-          Registering a cricket association?{" "}
-          <Link className="font-semibold text-lime" to="/organization/register">
-            Register your organization
-          </Link>
-        </p>
-      </form>
+            <div className="grid gap-1 sm:grid-cols-2 sm:gap-4">
+              <label className={labelClass}>
+                Full Name
+                <input
+                  required
+                  name="name"
+                  value={form.name}
+                  onChange={change}
+                  className={inputClass}
+                  placeholder="Enter your full name"
+                />
+              </label>
+
+              <label className={labelClass}>
+                Phone Number
+                <input
+                  required
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={change}
+                  className={inputClass}
+                  placeholder="Enter phone number"
+                />
+              </label>
+
+              <label className={labelClass}>
+                Email Address (optional)
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={change}
+                  className={inputClass}
+                  placeholder="Enter email address"
+                />
+              </label>
+
+              <label className={labelClass}>
+                Password
+                <input
+                  required
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  value={form.password}
+                  onChange={change}
+                  className={inputClass}
+                  placeholder="Minimum 8 characters"
+                />
+              </label>
+            </div>
+
+            <label className={labelClass}>
+              Register As
+              <select
+                name="role"
+                value={form.role}
+                onChange={change}
+                className={inputClass}
+              >
+                <option value="player">Player</option>
+                <option value="team_owner">Team Owner</option>
+              </select>
+            </label>
+          </section>
+
+          {form.role === "player" && (
+            <>
+              {/* PLAYER DETAILS */}
+              <section className="mt-8 border-t border-[#293b55] pt-6">
+                <h2 className="text-lg font-bold text-[#f4c34e]">
+                  2. Player Profile
+                </h2>
+
+                {loadingOptions ? (
+                  <p className="mt-4 text-sm text-[#a6b4c8]">
+                    Loading tournaments and teams...
+                  </p>
+                ) : (
+                  <div className="grid gap-1 sm:grid-cols-2 sm:gap-4">
+                    <label className={`${labelClass} sm:col-span-2`}>
+                      Select Tournament
+                      <select
+                        required
+                        name="tournamentId"
+                        value={form.tournamentId}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        <option value="">Select tournament</option>
+                        {tournaments.map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Player Category
+                      <select
+                        name="category"
+                        value={form.category}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        {categories.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Playing Role
+                      <select
+                        name="playingRole"
+                        value={form.playingRole}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        {playingRoles.map((item) => (
+                          <option key={item} value={item}>
+                            {formatLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Batting Style
+                      <select
+                        name="battingStyle"
+                        value={form.battingStyle}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        {battingStyles.map((item) => (
+                          <option key={item} value={item}>
+                            {formatLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Bowling Style
+                      <select
+                        name="bowlingStyle"
+                        value={form.bowlingStyle}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        {bowlingStyles.map((item) => (
+                          <option key={item} value={item}>
+                            {formatLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Preferred Jersey Number
+                      <select
+                        required
+                        name="preferredJerseyNumber"
+                        value={form.preferredJerseyNumber}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        <option value="">Select jersey number</option>
+                        {Array.from({ length: 99 }, (_, i) => i + 1).map(
+                          (number) => (
+                            <option key={number} value={number}>
+                              {number}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </section>
+
+              {/* PAYMENT */}
+              <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5">
+                <h2 className="text-lg font-bold text-[#f4c34e]">
+                  3. Registration Payment
+                </h2>
+
+                <p className="mt-2 text-sm text-[#a6b4c8]">
+                  Complete your registration payment securely through PhonePe.
+                  Your application will be sent for admin approval after
+                  payment.
+                </p>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span className="text-sm text-[#c0ccdc]">
+                    Registration Fee
+                  </span>
+                  <span className="text-xl font-black text-[#f4c34e]">
+                    Payable at checkout
+                  </span>
+                </div>
+              </section>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || (form.role === "player" && loadingOptions)}
+            className="mt-7 w-full rounded-xl bg-[#f4c34e] py-4 font-black text-[#101827] transition hover:bg-[#ffd36a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy
+              ? "Processing..."
+              : form.role === "player"
+                ? "Create Account & Pay Registration Fee"
+                : "Create Team Owner Account"}
+          </button>
+
+          <p className="mt-5 text-center text-sm text-[#a6b4c8]">
+            Already registered?{" "}
+            <Link to="/login" className="font-bold text-[#f4c34e]">
+              Sign in
+            </Link>
+          </p>
+
+          <p className="mt-4 text-center text-sm text-[#a6b4c8]">
+            Registering a cricket association?{" "}
+            <Link
+              to="/organization/register"
+              className="font-bold text-[#f4c34e]"
+            >
+              Register your organization
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

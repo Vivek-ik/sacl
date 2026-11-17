@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   ArrowUpRight,
+  Pencil,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import AddTournamentsModal from "../components/AddTournamentsModal";
@@ -133,7 +134,7 @@ function PageHeader({ title, description, action }) {
 
 function StatCard({ title, value = "—", icon: Icon, description }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-5">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-[#050817] p-4 sm:p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-emerald-100/50">{title}</p>
@@ -155,7 +156,7 @@ function StatCard({ title, value = "—", icon: Icon, description }) {
 
 function Panel({ title, children, action }) {
   return (
-    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-5">
+    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#050817] p-4 sm:p-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-bold">{title}</h3>
         {action}
@@ -186,7 +187,7 @@ function SearchBar({ placeholder = "Search..." }) {
       />
       <input
         placeholder={placeholder}
-        className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
+        className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
       />
     </div>
   );
@@ -377,13 +378,13 @@ export function Organizations() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search organization name or slug..."
-          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
         />
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm sm:w-auto"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm sm:w-auto"
         >
           <option value="all">All statuses</option>
           <option value="active">Active</option>
@@ -453,7 +454,7 @@ export function PlatformUsers() {
       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search by name, email or phone..." />
 
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All roles</option>
           <option>Organization Admin</option>
           <option>Auctioneer</option>
@@ -499,7 +500,7 @@ export function Payments() {
       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
         <SearchBar placeholder="Search transaction or organization..." />
 
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
+        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
           <option>All payment statuses</option>
           <option>Success</option>
           <option>Pending</option>
@@ -650,7 +651,7 @@ export function Plans() {
           {plans.map((plan) => (
             <div
               key={plan._id}
-              className="min-w-0 rounded-2xl border border-white/10 bg-[#0b211a] p-4 sm:p-6"
+              className="min-w-0 rounded-2xl border border-white/10 bg-[#050817] p-4 sm:p-6"
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -753,6 +754,42 @@ export function Tournaments() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const handleTournamentApproval = async (tournamentId, action) => {
+    const actionLabel = action === "approved" ? "approve" : "reject";
+
+    try {
+      setActionLoading(tournamentId);
+
+      await api.patch(`/tournaments/${tournamentId}/${action}`);
+
+      await fetchTournaments();
+    } catch (error) {
+      alert(
+        error.response?.data?.message || `Unable to ${actionLabel} tournament.`,
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleEditTournament = async (tournamentId, formData) => {
+    try {
+      setActionLoading(tournamentId);
+
+      await api.put(`/tournaments/${tournamentId}`, formData);
+
+      await fetchTournaments();
+
+      alert("Tournament updated successfully.");
+    } catch (error) {
+      alert(error.response?.data?.message || "Unable to update tournament.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   // GET: Fetch tournaments
   const fetchTournaments = async () => {
@@ -882,14 +919,14 @@ export function Tournaments() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tournaments..."
-            className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
+            className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50 sm:py-2.5"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm text-white outline-none"
+          className="rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm text-white outline-none"
         >
           <option value="all">All tournaments</option>
           <option value="draft">Draft</option>
@@ -907,6 +944,7 @@ export function Tournaments() {
       </div>
 
       {/* Tournament table */}
+
       <Panel title="Tournament List">
         {loading ? (
           <div className="flex min-h-40 items-center justify-center text-sm text-emerald-100/50">
@@ -934,7 +972,7 @@ export function Tournaments() {
           />
         ) : (
           <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-white/10">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <table className="w-full min-w-[950px] text-left text-sm">
               <thead className="bg-white/[0.04] text-xs uppercase tracking-wider text-emerald-100/50">
                 <tr>
                   {[
@@ -944,6 +982,8 @@ export function Tournaments() {
                     "Squad Size",
                     "Purse",
                     "Status",
+                    "Approval",
+                    "Actions",
                   ].map((column) => (
                     <th key={column} className="px-5 py-4 font-semibold">
                       {column}
@@ -953,57 +993,129 @@ export function Tournaments() {
               </thead>
 
               <tbody className="divide-y divide-white/5">
-                {filteredTournaments.map((tournament) => (
-                  <tr
-                    key={tournament._id}
-                    className="transition hover:bg-white/[0.03]"
-                  >
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-white">
-                        {tournament.name}
-                      </p>
+                {filteredTournaments.map((tournament) => {
+                  const isProcessing = actionLoading === tournament._id;
+                  const approvalStatus = tournament.approvalStatus || "pending";
 
-                      <p className="mt-1 text-xs text-emerald-100/40">
-                        {tournament.city || tournament.venue || "—"}
-                      </p>
-                    </td>
+                  return (
+                    <tr
+                      key={tournament._id}
+                      className="transition hover:bg-white/[0.03]"
+                    >
+                      {/* Tournament */}
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-white">
+                          {tournament.name}
+                        </p>
 
-                    <td className="px-5 py-4 text-emerald-100/60">
-                      <div>{formatDate(tournament.startDate)}</div>
-                      <div className="mt-1 text-xs text-emerald-100/40">
-                        To {formatDate(tournament.endDate)}
-                      </div>
-                    </td>
+                        <p className="mt-1 text-xs text-emerald-100/40">
+                          {tournament.city || tournament.venue || "—"}
+                        </p>
+                      </td>
 
-                    <td className="px-5 py-4 text-emerald-100/70">
-                      {tournament.teamCount ?? tournament.teams?.length ?? 0}
-                      {" / "}
-                      {tournament.teamLimit ?? "—"}
-                    </td>
+                      {/* Dates */}
+                      <td className="px-5 py-4 text-emerald-100/60">
+                        <div>{formatDate(tournament.startDate)}</div>
+                        <div className="mt-1 text-xs text-emerald-100/40">
+                          To {formatDate(tournament.endDate)}
+                        </div>
+                      </td>
 
-                    <td className="px-5 py-4 text-emerald-100/70">
-                      {tournament.squadSize ?? "—"}
-                    </td>
+                      {/* Teams */}
+                      <td className="px-5 py-4 text-emerald-100/70">
+                        {tournament.teamCount ?? tournament.teams?.length ?? 0}
+                        {" / "}
+                        {tournament.teamLimit ?? "—"}
+                      </td>
 
-                    <td className="px-5 py-4 text-emerald-100/70">
-                      {tournament.purseTotal != null
-                        ? `₹${Number(tournament.purseTotal).toLocaleString(
-                            "en-IN",
-                          )}`
-                        : "—"}
-                    </td>
+                      {/* Squad Size */}
+                      <td className="px-5 py-4 text-emerald-100/70">
+                        {tournament.squadSize ?? "—"}
+                      </td>
 
-                    <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusStyle(
-                          tournament.status,
-                        )}`}
-                      >
-                        {tournament.status?.replaceAll("_", " ") || "Unknown"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Purse */}
+                      <td className="px-5 py-4 text-emerald-100/70">
+                        {tournament.purseTotal != null
+                          ? `₹${Number(tournament.purseTotal).toLocaleString(
+                              "en-IN",
+                            )}`
+                          : "—"}
+                      </td>
+
+                      {/* Tournament Status */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusStyle(
+                            tournament.status,
+                          )}`}
+                        >
+                          {tournament.status?.replaceAll("_", " ") || "Unknown"}
+                        </span>
+                      </td>
+
+                      {/* Approval Status */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                            approvalStatus === "approved"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : approvalStatus === "rejected"
+                                ? "bg-red-500/15 text-red-400"
+                                : "bg-yellow-500/15 text-yellow-400"
+                          }`}
+                        >
+                          {approvalStatus}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-5 py-4">
+                        {approvalStatus === "pending" ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={isProcessing}
+                              onClick={() =>
+                                handleTournamentApproval(
+                                  tournament._id,
+                                  "approved",
+                                )
+                              }
+                              className="rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {isProcessing ? "Processing..." : "Approve"}
+                            </button>
+
+                            <button
+                              disabled={isProcessing}
+                              onClick={() =>
+                                handleTournamentApproval(
+                                  tournament._id,
+                                  "rejected",
+                                )
+                              }
+                              className="rounded-lg bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-emerald-100/40">
+                            No actions available
+                          </span>
+                        )}
+
+                        {/* <button
+                          type="button"
+                          onClick={() => handleEditTournament(tournament._id)}
+                          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#f4c34e]/30 bg-[#f4c34e]/10 px-3.5 py-2 text-xs font-semibold text-[#f4c34e] transition-all duration-200 hover:border-[#f4c34e] hover:bg-[#f4c34e] hover:text-[#101827] focus:outline-none focus:ring-2 focus:ring-[#f4c34e]/40"
+                        >
+                          <Pencil size={14} />
+                          Edit Tournament
+                        </button> */}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1024,98 +1136,539 @@ export function Tournaments() {
   );
 }
 
+// export function TeamsManagement() {
+//   return (
+//     <div className="w-full min-w-0">
+//       <PageHeader
+//         title="Teams"
+//         description="Manage participating teams across your tournaments."
+//       />
+
+//       <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+//         <StatCard title="Total Teams" icon={ShieldCheck} />
+//         <StatCard title="Approved Teams" icon={UserCheck} />
+//         <StatCard title="Pending Approval" icon={Users} />
+//         <StatCard title="Available Slots" icon={Trophy} />
+//       </div>
+
+//       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
+//         <SearchBar placeholder="Search team name or owner..." />
+
+//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
+//           <option>All tournaments</option>
+//         </select>
+
+//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
+//           <option>All statuses</option>
+//           <option>Approved</option>
+//           <option>Pending</option>
+//           <option>Rejected</option>
+//         </select>
+//       </div>
+
+//       <Panel title="Participating Teams">
+//         <TableShell
+//           columns={[
+//             "Team",
+//             "Owner",
+//             "Tournament",
+//             "Players",
+//             "Squad",
+//             "Purse Remaining",
+//             "Status",
+//             "Actions",
+//           ]}
+//           emptyTitle="No teams loaded"
+//           emptyDescription="Teams registered for your tournaments will appear here."
+//         />
+//       </Panel>
+//     </div>
+//   );
+// }
+
+// export function PlayersManagement() {
+//   return (
+//     <div className="w-full min-w-0">
+//       <PageHeader
+//         title="Players"
+//         description="Manage player registrations, approvals and auction eligibility."
+//       />
+
+//       <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+//         <StatCard title="Registered Players" icon={Users} />
+//         <StatCard title="Approved Players" icon={UserCheck} />
+//         <StatCard title="Pending Approval" icon={ShieldCheck} />
+//         <StatCard title="Auctioned Players" icon={Trophy} />
+//       </div>
+
+//       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
+//         <SearchBar placeholder="Search player name..." />
+
+//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
+//           <option>All categories</option>
+//           <option>ICONIC</option>
+//           <option>A</option>
+//           <option>B</option>
+//           <option>C</option>
+//           <option>D</option>
+//         </select>
+//       </div>
+
+//       <Panel title="Player Registrations">
+//         <TableShell
+//           columns={[
+//             "Player",
+//             "Category",
+//             "Playing Role",
+//             "Team",
+//             "Registration",
+//             "Approval",
+//             "Actions",
+//           ]}
+//           emptyTitle="No players loaded"
+//           emptyDescription="Player registrations will appear here."
+//         />
+//       </Panel>
+//     </div>
+//   );
+// }
+
+function ManagementFilters({
+  search,
+  setSearch,
+  status,
+  setStatus,
+  payment,
+  setPayment,
+  extra,
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap gap-3">
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name..."
+        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none sm:max-w-xs"
+      />
+
+      <select
+        value={status}
+        onChange={(e) => setStatus(e.target.value)}
+        className="rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm"
+      >
+        <option value="all">All approvals</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+
+      <select
+        value={payment}
+        onChange={(e) => setPayment(e.target.value)}
+        className="rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm"
+      >
+        <option value="all">All payments</option>
+        <option value="pending">Payment pending</option>
+        <option value="paid">Paid</option>
+        <option value="failed">Failed</option>
+      </select>
+
+      {extra}
+    </div>
+  );
+}
+
+function ReviewButtons({ item, type, onReviewed }) {
+  const [busy, setBusy] = useState(false);
+
+  async function review(status) {
+    if (!window.confirm(`${status} this ${type}?`)) return;
+
+    setBusy(true);
+
+    try {
+      await api.patch(`/admin/${type}s/${item._id}/review`, {
+        status,
+      });
+
+      await onReviewed();
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (item.approvalStatus !== "pending") {
+    return <span className="text-xs text-white/40">Reviewed</span>;
+  }
+
+  return (
+    <div className="flex gap-2">
+      <button
+        disabled={busy || item.registrationFeeStatus !== "paid"}
+        onClick={() => review("approved")}
+        title={
+          item.registrationFeeStatus !== "paid"
+            ? "Payment required before approval"
+            : "Approve application"
+        }
+        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Approve
+      </button>
+
+      <button
+        disabled={busy}
+        onClick={() => review("rejected")}
+        className="rounded-lg bg-red-600/20 px-3 py-2 text-xs font-bold text-red-300 disabled:opacity-40"
+      >
+        Reject
+      </button>
+    </div>
+  );
+}
+
+function Pagination({ pagination, setPage }) {
+  if (!pagination || pagination.pages <= 1) return null;
+
+  return (
+    <div className="mt-5 flex items-center justify-between gap-3">
+      <span className="text-xs text-white/50">
+        Page {pagination.page} of {pagination.pages} · {pagination.total}{" "}
+        records
+      </span>
+
+      <div className="flex gap-2">
+        <button
+          disabled={pagination.page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+          className="rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"
+        >
+          Previous
+        </button>
+
+        <button
+          disabled={pagination.page >= pagination.pages}
+          onClick={() => setPage((p) => p + 1)}
+          className="rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TeamsManagement() {
+  const [teams, setTeams] = useState([]);
+  const [stats, setStats] = useState({});
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [payment, setPayment] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchTeams() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const { data } = await api.get("/admin/teams/management", {
+        params: {
+          page,
+          limit: 20,
+          search,
+          status,
+          payment,
+        },
+      });
+
+      setTeams(data.teams || []);
+      setStats(data.stats || {});
+      setPagination(data.pagination);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(fetchTeams, 300);
+    return () => clearTimeout(timer);
+  }, [page, search, status, payment]);
+
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Teams"
-        description="Manage participating teams across your tournaments."
+        title="Teams Management"
+        description="Review team registrations and monitor participating teams."
       />
 
-      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Total Teams" icon={ShieldCheck} />
-        <StatCard title="Approved Teams" icon={UserCheck} />
-        <StatCard title="Pending Approval" icon={Users} />
-        <StatCard title="Available Slots" icon={Trophy} />
-      </div>
-
-      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <SearchBar placeholder="Search team name or owner..." />
-
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
-          <option>All tournaments</option>
-        </select>
-
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
-          <option>All statuses</option>
-          <option>Approved</option>
-          <option>Pending</option>
-          <option>Rejected</option>
-        </select>
-      </div>
-
-      <Panel title="Participating Teams">
-        <TableShell
-          columns={[
-            "Team",
-            "Owner",
-            "Tournament",
-            "Players",
-            "Squad",
-            "Purse Remaining",
-            "Status",
-            "Actions",
-          ]}
-          emptyTitle="No teams loaded"
-          emptyDescription="Teams registered for your tournaments will appear here."
+      <div className="mb-5 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Total Teams"
+          value={stats.total ?? 0}
+          icon={ShieldCheck}
         />
+        <StatCard
+          title="Approved"
+          value={stats.approved ?? 0}
+          icon={UserCheck}
+        />
+        <StatCard title="Pending" value={stats.pending ?? 0} icon={Users} />
+        <StatCard
+          title="Available Slots"
+          value={stats.availableSlots ?? 0}
+          icon={Trophy}
+        />
+      </div>
+
+      <ManagementFilters
+        search={search}
+        setSearch={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        status={status}
+        setStatus={(v) => {
+          setStatus(v);
+          setPage(1);
+        }}
+        payment={payment}
+        setPayment={(v) => {
+          setPayment(v);
+          setPage(1);
+        }}
+      />
+
+      <Panel title="Team Applications">
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} onRetry={fetchTeams} />
+        ) : (
+          <>
+            <DataTable
+              columns={[
+                "Team",
+                "Owner",
+                "Tournament",
+                "Squad",
+                "Purse",
+                "Payment",
+                "Approval",
+                "Actions",
+              ]}
+              rows={teams}
+              emptyTitle="No teams found"
+              emptyDescription="Team applications will appear here."
+              renderRow={(team) => (
+                <tr key={team._id} className="hover:bg-white/[0.03]">
+                  <td className="px-5 py-4 font-semibold">{team.name}</td>
+                  <td className="px-5 py-4">
+                    <p>{team.primaryOwner?.name || team.owner?.name || "—"}</p>
+                    <p className="text-xs text-white/40">
+                      {team.primaryOwner?.phone || team.owner?.phone || ""}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4">{team.tournament?.name || "—"}</td>
+                  <td className="px-5 py-4">{team.squad?.length ?? 0}</td>
+                  <td className="px-5 py-4">
+                    {Number(team.purseRemaining ?? 0).toLocaleString("en-IN")}{" "}
+                    pts
+                  </td>
+                  <td className="px-5 py-4">
+                    <StatusBadge status={team.registrationFeeStatus} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <StatusBadge status={team.approvalStatus} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <ReviewButtons
+                      item={team}
+                      type="team"
+                      onReviewed={fetchTeams}
+                    />
+                  </td>
+                </tr>
+              )}
+            />
+
+            <Pagination pagination={pagination} setPage={setPage} />
+          </>
+        )}
       </Panel>
     </div>
   );
 }
 
 export function PlayersManagement() {
+  const [players, setPlayers] = useState([]);
+  const [stats, setStats] = useState({});
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [payment, setPayment] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchPlayers() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const { data } = await api.get("/admin/players/management", {
+        params: {
+          page,
+          limit: 20,
+          search,
+          status,
+          payment,
+          category,
+        },
+      });
+
+      setPlayers(data.players || []);
+      setStats(data.stats || {});
+      setPagination(data.pagination);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(fetchPlayers, 300);
+    return () => clearTimeout(timer);
+  }, [page, search, status, payment, category]);
+
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Players"
-        description="Manage player registrations, approvals and auction eligibility."
+        title="Players Management"
+        description="Manage auction registrations, payments and player approvals."
       />
 
-      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Registered Players" icon={Users} />
-        <StatCard title="Approved Players" icon={UserCheck} />
-        <StatCard title="Pending Approval" icon={ShieldCheck} />
-        <StatCard title="Auctioned Players" icon={Trophy} />
-      </div>
-
-      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <SearchBar placeholder="Search player name..." />
-
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#0b211a] px-4 py-2.5 text-sm outline-none sm:w-auto">
-          <option>All categories</option>
-          <option>ICONIC</option>
-          <option>A</option>
-          <option>B</option>
-          <option>C</option>
-          <option>D</option>
-        </select>
-      </div>
-
-      <Panel title="Player Registrations">
-        <TableShell
-          columns={[
-            "Player",
-            "Category",
-            "Playing Role",
-            "Team",
-            "Registration",
-            "Approval",
-            "Actions",
-          ]}
-          emptyTitle="No players loaded"
-          emptyDescription="Player registrations will appear here."
+      <div className="mb-5 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Registered Players"
+          value={stats.total ?? 0}
+          icon={Users}
         />
+        <StatCard
+          title="Approved Players"
+          value={stats.approved ?? 0}
+          icon={UserCheck}
+        />
+        <StatCard
+          title="Pending Approval"
+          value={stats.pending ?? 0}
+          icon={ShieldCheck}
+        />
+        <StatCard
+          title="Paid Registrations"
+          value={stats.paid ?? 0}
+          icon={CreditCard}
+        />
+      </div>
+
+      <ManagementFilters
+        search={search}
+        setSearch={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        status={status}
+        setStatus={(v) => {
+          setStatus(v);
+          setPage(1);
+        }}
+        payment={payment}
+        setPayment={(v) => {
+          setPayment(v);
+          setPage(1);
+        }}
+        extra={
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm"
+          >
+            <option value="all">All categories</option>
+            {["ICONIC", "A", "B", "C", "D"].map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        }
+      />
+
+      <Panel title="Player Applications">
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} onRetry={fetchPlayers} />
+        ) : (
+          <>
+            <DataTable
+              columns={[
+                "Player",
+                "Category",
+                "Playing Role",
+                "Tournament",
+                "Payment",
+                "Approval",
+                "Actions",
+              ]}
+              rows={players}
+              emptyTitle="No players found"
+              emptyDescription="Player applications will appear here."
+              renderRow={(player) => (
+                <tr key={player._id} className="hover:bg-white/[0.03]">
+                  <td className="px-5 py-4">
+                    <p className="font-semibold">{player.fullName}</p>
+                    <p className="text-xs text-white/40">
+                      {player.user?.phone || player.user?.email || "—"}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4">{player.category}</td>
+                  <td className="px-5 py-4">
+                    {player.role?.replaceAll("_", " ")}
+                  </td>
+                  <td className="px-5 py-4">
+                    {player.tournament?.name || "—"}
+                  </td>
+                  <td className="px-5 py-4">
+                    <StatusBadge status={player.registrationFeeStatus} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <StatusBadge status={player.approvalStatus} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <ReviewButtons
+                      item={player}
+                      type="player"
+                      onReviewed={fetchPlayers}
+                    />
+                  </td>
+                </tr>
+              )}
+            />
+
+            <Pagination pagination={pagination} setPage={setPage} />
+          </>
+        )}
       </Panel>
     </div>
   );
@@ -1194,7 +1747,7 @@ export function OrganizerMatches() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search matches or teams..."
-          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
         />
       </div>
 

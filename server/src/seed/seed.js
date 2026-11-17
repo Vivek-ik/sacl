@@ -11,12 +11,12 @@ import Team from "../models/Team.js";
 import Player from "../models/Player.js";
 import Match from "../models/Match.js";
 
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD || "12345678";
+const DEMO_PASSWORD = "12345678";
 
 const DEMO = {
-  organizationSlug: "samrat-ashok-cricket-league",
-  organizationName: "Samrat Ashok Cricket League",
-  tournamentName: "Samrat Ashok Cricket League",
+  organizationSlug: "sacl-demo",
+  organizationName: "SACL Demo Cricket Association",
+  tournamentName: "SACL Premier League 2026",
   planCode: "SACL_TRIAL",
 };
 
@@ -89,6 +89,7 @@ async function upsertUser({
     },
   };
 
+  // Don't explicitly write organization: null for platform users.
   if (organization) {
     update.$set.organization = organization;
   }
@@ -125,22 +126,28 @@ async function main() {
     throw new Error("MONGO_URI is missing");
   }
 
-  if (DEMO_PASSWORD.length < 8) {
-    throw new Error("Seed password must be at least 8 characters");
+  if (!DEMO_PASSWORD || DEMO_PASSWORD.length < 8) {
+    throw new Error(
+      "Set SEED_DEMO_PASSWORD to a password of at least 12 characters",
+    );
   }
 
   await mongoose.connect(process.env.MONGO_URI);
   console.log("Connected to MongoDB");
 
-  // Set SEED_CLEAR_DB=true only when you intentionally want
-  // to delete every existing record in the database.
+  // WARNING: Deletes all records from every collection.
   if (process.env.SEED_CLEAR_DB === "true") {
     await clearDatabase();
+  } else {
+    throw new Error(
+      "Database clearing is disabled. Set SEED_CLEAR_DB=true to confirm.",
+    );
   }
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
 
-  // 1. Platform Super Admin
+  // 1. Create or reuse the platform Super Admin.
+  // Never expose this account through public registration.
   const superAdmin = await upsertUser({
     name: "SACL Platform Admin",
     email: "superadmin@sacl-demo.test",
@@ -149,7 +156,8 @@ async function main() {
     phone: "9000000001",
   });
 
-  // 2. Organization: Samrat Ashok Cricket League
+  // 2. Create/reuse the demo organization.
+  // Assumed Organization fields: name, slug, status, createdBy.
   const organization = await Organization.findOneAndUpdate(
     { slug: DEMO.organizationSlug },
     {
@@ -164,9 +172,9 @@ async function main() {
     { upsert: true, new: true, runValidators: true },
   );
 
-  // 3. Organization Admin
+  // 3. Create/reuse the organization admin.
   const orgAdmin = await upsertUser({
-    name: "Samrat Ashok Cricket League Admin",
+    name: "Demo Organization Admin",
     email: "admin@sacl-demo.test",
     passwordHash,
     role: "org_admin",
@@ -174,7 +182,9 @@ async function main() {
     phone: "9000000002",
   });
 
-  // 4. Subscription Plan
+  // 4. Create the trial plan.
+  // Assumed plan fields: code, name, priceMonthly, priceYearly,
+  // trialDays, limits, isActive.
   const plan = await SubscriptionPlan.findOneAndUpdate(
     { code: DEMO.planCode },
     {
@@ -188,14 +198,16 @@ async function main() {
           tournaments: 1,
           teams: 10,
           playersPerTeam: 13,
-          users: 150,
+          users: 30,
         },
       },
     },
     { upsert: true, new: true, runValidators: true },
   );
 
-  // 5. Organization Subscription
+  // 5. Create/reuse the trial subscription.
+  // Assumed Subscription fields: organization, plan, status,
+  // startDate, trialEndsAt, currentPeriodStart, currentPeriodEnd.
   const now = new Date();
   const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -214,7 +226,9 @@ async function main() {
     { upsert: true, new: true, runValidators: true },
   );
 
-  // 6. Create exactly one tournament
+  // 6. Create/reuse the tournament.
+  // Assumed Tournament fields: name, organization, status,
+  // auctionStatus, squadSize, teamLimit, purseTotal.
   const tournament = await Tournament.findOneAndUpdate(
     {
       organization: organization._id,
@@ -232,9 +246,9 @@ async function main() {
     { upsert: true, new: true, runValidators: true },
   );
 
-  // 7. Auctioneer
+  // 7. Create auctioneer and scorer.
   const auctioneer = await upsertUser({
-    name: "SACL Auctioneer",
+    name: "Demo Auctioneer",
     email: "auctioneer@sacl-demo.test",
     passwordHash,
     role: "auctioneer",
@@ -242,9 +256,8 @@ async function main() {
     phone: "9000000003",
   });
 
-  // 8. Scorer
   const scorer = await upsertUser({
-    name: "SACL Scorer",
+    name: "Demo Scorer",
     email: "scorer@sacl-demo.test",
     passwordHash,
     role: "scorer",
@@ -252,7 +265,7 @@ async function main() {
     phone: "9000000004",
   });
 
-  // 9. Teams, owners and players
+  // 8. Create teams, owners, and 13 players per team.
   const teams = [];
   const allPlayers = [];
 
@@ -340,7 +353,7 @@ async function main() {
     await team.save();
   }
 
-  // 10. Opening Match
+  // 9. Create one scheduled match.
   const teamA = teams[0];
   const teamB = teams[1];
 
@@ -380,13 +393,13 @@ async function main() {
 
   console.log("\nDEMO LOGIN ACCOUNTS");
   console.log("Super Admin: superadmin@sacl-demo.test");
-  console.log("Organization Admin: admin@sacl-demo.test");
-  console.log("Auctioneer: auctioneer@sacl-demo.test");
-  console.log("Scorer: scorer@sacl-demo.test");
-  console.log("Team Owner: indore.warriors.owner@sacl-demo.test");
-  console.log("Password:", DEMO_PASSWORD);
+  console.log("Org Admin:   admin@sacl-demo.test");
+  console.log("Auctioneer:  auctioneer@sacl-demo.test");
+  console.log("Scorer:      scorer@sacl-demo.test");
+  console.log("Team Owner:  indore.warriors.owner@sacl-demo.test");
+  console.log("Password:    value of SEED_DEMO_PASSWORD");
 
-  console.log("\nIDs for testing:");
+  console.log("\nUse these IDs when testing:");
   console.log({
     organizationId: String(organization._id),
     tournamentId: String(tournament._id),

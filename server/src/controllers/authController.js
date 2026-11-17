@@ -40,7 +40,11 @@ export async function register(req, res, next) {
 export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
+    console.log("email, password",email, password);
+    
     const user = await User.findOne({ email }).select("+password");
+    console.log("user",user);
+    
     if (!user || !(await bcrypt.compare(password || "", user.password)))
       return res.status(401).json({ message: "Invalid email or password" });
     if (!user.isActive)

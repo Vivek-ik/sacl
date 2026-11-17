@@ -246,7 +246,7 @@ export default function StaffManagement() {
       </div>
 
       {/* Staff table */}
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b211a]">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#050817]">
         <div className="flex flex-col justify-between gap-4 border-b border-white/10 p-5 lg:flex-row lg:items-center">
           <div>
             <h2 className="font-bold text-white">Organization Members</h2>
@@ -265,7 +265,7 @@ export default function StaffManagement() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search staff..."
-                className="w-full rounded-xl border border-white/10 bg-[#071b16] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-lime/50 sm:w-64"
+                className="w-full rounded-xl border border-white/10 bg-[#050817] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-lime/50 sm:w-64"
               />
             </div>
 
@@ -273,7 +273,7 @@ export default function StaffManagement() {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-white/10 bg-[#071b16] px-4 py-2.5 pr-10 text-sm outline-none focus:border-lime/50"
+                className="w-full appearance-none rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 pr-10 text-sm outline-none focus:border-lime/50"
               >
                 <option value="all">All roles</option>
                 <option value="auctioneer">Auctioneer</option>
@@ -422,7 +422,7 @@ export default function StaffManagement() {
       {/* Invite modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
-          <div className="my-auto w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#0b211a] shadow-2xl">
+          <div className="my-auto w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#050817] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 p-6">
               <div>
                 <h2 className="text-xl font-bold">Invite Staff Member</h2>
@@ -454,7 +454,7 @@ export default function StaffManagement() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Enter full name"
-                  className="w-full rounded-xl border border-white/10 bg-[#071b16] px-4 py-3 text-sm outline-none focus:border-lime/50"
+                  className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none focus:border-lime/50"
                 />
               </div>
 
@@ -475,7 +475,7 @@ export default function StaffManagement() {
                       setForm({ ...form, email: e.target.value })
                     }
                     placeholder="person@example.com"
-                    className="w-full rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm outline-none focus:border-lime/50"
+                    className="w-full rounded-xl border border-white/10 bg-[#050817] py-3 pl-10 pr-4 text-sm outline-none focus:border-lime/50"
                   />
                 </div>
               </div>
@@ -495,7 +495,7 @@ export default function StaffManagement() {
                       setForm({ ...form, phone: e.target.value })
                     }
                     placeholder="Enter phone number"
-                    className="w-full rounded-xl border border-white/10 bg-[#071b16] py-3 pl-10 pr-4 text-sm outline-none focus:border-lime/50"
+                    className="w-full rounded-xl border border-white/10 bg-[#050817] py-3 pl-10 pr-4 text-sm outline-none focus:border-lime/50"
                   />
                 </div>
               </div>
@@ -519,7 +519,7 @@ export default function StaffManagement() {
                           className={`rounded-xl border p-4 text-left transition ${
                             active
                               ? "border-lime bg-lime/[0.08]"
-                              : "border-white/10 bg-[#071b16] hover:border-white/20"
+                              : "border-white/10 bg-[#050817] hover:border-white/20"
                           }`}
                         >
                           <div className="flex items-center justify-between">

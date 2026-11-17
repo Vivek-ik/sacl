@@ -18,7 +18,7 @@ const initialForm = {
 };
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-[#071b16] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-emerald-100/30 focus:border-lime/60";
+  "w-full rounded-xl border border-white/10 bg-[#050817] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-emerald-100/30 focus:border-lime/60";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-emerald-50/80";
 
@@ -104,7 +104,7 @@ export default function AddTournamentsModal({ onClose, onCreated }) {
         }
       }}
     >
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b211a] shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#050817] shadow-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4 sm:px-7">
           <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import {
   Trophy,
@@ -9,7 +10,6 @@ import {
   Building2,
   CreditCard,
   Receipt,
-  Settings,
   CalendarDays,
   UserRound,
   Wallet,
@@ -54,19 +54,16 @@ const teamOwnerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/team", label: "My Team", icon: ShieldCheck },
-  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 const scorerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/scorer", label: "Scoring Dashboard", icon: Radio },
-  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 const playerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
-  // { to: "/live", label: "Live Scoreboard", icon: Activity },
 ];
 
 export default function Layout({ children }) {
@@ -89,19 +86,22 @@ export default function Layout({ children }) {
   const roleLabel = user?.role?.replaceAll("_", " ");
 
   return (
-    <div className="min-h-screen bg-[#071b16] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b211a]">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-4">
+    <div className="min-h-screen bg-[#050817] text-[#f1f5f9]">
+
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-[#293b55] bg-[#0d192c]/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-4 sm:px-5">
+
           <Link to="/" className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-lime text-[#071b16]">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#f4c34e] text-[#101827] shadow-lg shadow-yellow-500/10">
               <Trophy size={22} />
             </div>
 
             <div>
-              <p className="font-black tracking-wide">
-                SACL <span className="text-lime">2.0</span>
+              <p className="font-black tracking-wide text-white">
+                SACL <span className="text-[#f4c34e]">2.0</span>
               </p>
-              <p className="text-[10px] uppercase tracking-widest text-emerald-100/50">
+              <p className="text-[10px] uppercase tracking-widest text-[#a6b4c8]">
                 Cricket management platform
               </p>
             </div>
@@ -109,10 +109,10 @@ export default function Layout({ children }) {
 
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="max-w-[160px] truncate text-sm font-semibold">
+              <p className="max-w-[160px] truncate text-sm font-semibold text-white">
                 {user?.name}
               </p>
-              <p className="text-xs capitalize text-emerald-100/50">
+              <p className="text-xs capitalize text-[#a6b4c8]">
                 {roleLabel}
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function Layout({ children }) {
                 logout();
                 navigate("/login");
               }}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 transition hover:bg-white/10"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#293b55] text-[#a6b4c8] transition hover:border-[#f4c34e]/50 hover:bg-[#1b2d45] hover:text-[#f4c34e]"
               title="Logout"
               aria-label="Logout"
             >
@@ -132,9 +132,13 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-5 md:flex-row">
-        <aside className="h-fit rounded-2xl border border-white/10 bg-[#0b211a] p-3 md:sticky md:top-[90px]">
-          <p className="mb-3 px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-100/40">
+      {/* Main Layout */}
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-5 md:flex-row md:px-5">
+
+        {/* Sidebar */}
+        <aside className="h-fit rounded-2xl border border-[#293b55] bg-[#0d192c] p-3 shadow-xl shadow-black/10 md:sticky md:top-[90px] md:min-w-[230px]">
+
+          <p className="mb-3 px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a6b4c8]">
             {user?.role === "super_admin"
               ? "Platform Management"
               : user?.role === "org_admin"
@@ -149,10 +153,10 @@ export default function Layout({ children }) {
                 to={to}
                 end={to === "/"}
                 className={({ isActive }) =>
-                  `flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${
+                  `flex shrink-0 items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all duration-200 ${
                     isActive
-                      ? "bg-lime font-semibold text-[#071b16]"
-                      : "text-emerald-100/70 hover:bg-white/5 hover:text-white"
+                      ? "bg-[#f4c34e] font-bold text-[#101827] shadow-md shadow-yellow-500/10"
+                      : "text-[#c0ccdc] hover:bg-[#1b2d45] hover:text-white"
                   }`
                 }
               >
@@ -162,17 +166,21 @@ export default function Layout({ children }) {
             ))}
           </nav>
 
-          <div className="mt-6 hidden rounded-xl border border-white/10 bg-white/[0.03] p-3 md:block">
-            <p className="text-xs font-semibold text-emerald-100/70">
+          {/* Sidebar Footer */}
+          <div className="mt-6 hidden rounded-xl border border-[#293b55] bg-[#1b2d45]/60 p-3 md:block">
+            <p className="text-xs font-bold text-[#f4c34e]">
               SACL 2.0
             </p>
-            <p className="mt-1 text-[11px] text-emerald-100/40">
+            <p className="mt-1 text-[11px] leading-relaxed text-[#a6b4c8]">
               Cricket auction and tournament management
             </p>
           </div>
         </aside>
 
-        <main className="min-w-0">{children}</main>
+        {/* Page Content */}
+        <main className="min-w-0 flex-1">
+          {children}
+        </main>
       </div>
     </div>
   );

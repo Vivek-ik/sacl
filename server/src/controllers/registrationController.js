@@ -5,34 +5,82 @@ import Tournament from "../models/Tournament.js";
 
 export async function registerPlayer(req, res, next) {
   try {
-    const exists = await Player.findOne({ user: req.user._id });
-    if (exists)
-      return res.status(409).json({ message: "Player profile already exists" });
-    const team = await Team.findOne({
-      _id: req.body.preferredTeamId,
-      approvalStatus: "approved",
-    });
+    const {
+      tournamentId,
+      fullName,
+      category,
+      role,
+      battingStyle,
+      bowlingStyle,
+      preferredJerseyNumber,
+    } = req.body;
 
-    if (!team) {
+    if (
+      !tournamentId ||
+      !fullName?.trim() ||
+      !category ||
+      !role ||
+      !battingStyle ||
+      !bowlingStyle ||
+      !preferredJerseyNumber
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Please select a valid approved team",
+        message: "Please complete all required player details",
       });
     }
 
-    const player = await Player.create({
-      fullName: req.body.fullName,
-      category: req.body.category,
-      role: req.body.role,
-      battingStyle: req.body.battingStyle,
-      bowlingStyle: req.body.bowlingStyle,
-      preferredJerseyNumber: req.body.preferredJerseyNumber,
-      preferredTeam: team._id,
-      user: req.user.id,
+    // Verify tournament
+    const tournament = await Tournament.findOne({
+      _id: tournamentId,
+      status: ["draft", "upcoming", "active"],
     });
-    res.status(201).json(player);
-  } catch (e) {
-    next(e);
+
+    if (!tournament) {
+      return res.status(400).json({
+        success: false,
+        message: "Tournament is unavailable for registration",
+      });
+    }
+
+    // Prevent duplicate player applications for this tournament
+    const existingPlayer = await Player.findOne({
+      user: req.user._id,
+      tournament: tournament._id,
+    });
+
+    if (existingPlayer) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already applied for this tournament",
+        player: existingPlayer,
+      });
+    }
+
+    // Create player application for auction pool
+    const player = await Player.create({
+      user: req.user._id,
+      tournament: tournament._id,
+
+      fullName: fullName.trim(),
+      category,
+      role,
+      battingStyle,
+      bowlingStyle,
+      preferredJerseyNumber: Number(preferredJerseyNumber),
+
+      // No team assignment during registration
+      approvalStatus: "pending",
+      registrationFeeStatus: "pending",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Player application submitted successfully",
+      player,
+    });
+  } catch (error) {
+    next(error);
   }
 }
 
@@ -136,15 +184,18 @@ export async function myRegistration(req, res, next) {
   try {
     const [player, team] = await Promise.all([
       Player.findOne({
-        user: req.user.id,
-      }).populate("preferredTeam", "name"),
-      Team.findOne({ primaryOwner: req.user._id }).populate(
-        "squad",
-        "fullName category role",
-      ),
+        user: req.user._id,
+      }).populate("tournament", "name season status"),
+
+      Team.findOne({
+        primaryOwner: req.user._id,
+      })
+        .populate("tournament", "name season status")
+        .populate("squad", "fullName category role"),
     ]);
+
     res.json({ player, team });
-  } catch (e) {
-    next(e);
+  } catch (error) {
+    next(error);
   }
 }

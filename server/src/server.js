@@ -24,9 +24,14 @@ import tournamentRoutes from "./routes/tournamentRoutes.js";
 
 import publicTournamentRoutes from "./routes/publicTournamentRoutes.js";
 
+import paymentRoutes from "./routes/paymentRoutes.js";
+
 // Socket.IO
 import { initializeAuctionSocket } from "./socket/auctionSocket.js";
 import { configureScoringSocket } from "./socket/scoringSocket.js";
+
+import adminManagementRoutes from "./routes/adminManagement.routes.js";
+
 
 import { notFound, errorHandler } from "./middleware/error.js";
 
@@ -62,6 +67,8 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.use("/api/payments", paymentRoutes);
+
 // Existing routes
 app.use("/api/auth", authRoutes);
 app.use("/api/registrations", registrationRoutes);
@@ -78,7 +85,7 @@ app.use("/api/public/tournaments", publicTournamentRoutes);
 app.use("/api/super-admin", superAdminRoutes);
 app.use("/api/saas", saasRoutes);
 app.use("/api/tournaments", tournamentRoutes);
-
+app.use("/api/admin", adminManagementRoutes);
 
 // Error handling
 app.use(notFound);
