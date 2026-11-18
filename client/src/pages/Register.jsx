@@ -198,7 +198,7 @@ export default function Register() {
         paymentData.append("screenshot", paymentScreenshot);
 
         const paymentResponse = await api.post(
-          "/team-payment/submit-proof",
+          "/player-payment/submit-proof",
           paymentData,
         );
 
