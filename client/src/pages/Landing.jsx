@@ -580,6 +580,9 @@ export default function Landing() {
                 <Link to="/home" className="hover:text-amber-400">
                   Home
                 </Link>
+                <Link to="/contact" className="hover:text-amber-400">
+                  Contact us
+                </Link>
                 <Link to="/tournaments" className="hover:text-amber-400">
                   Tournaments
                 </Link>
