@@ -13,6 +13,7 @@ export async function registerPlayer(req, res, next) {
       battingStyle,
       bowlingStyle,
       preferredJerseyNumber,
+      preferredJerseySize,
     } = req.body;
 
     if (
@@ -22,7 +23,8 @@ export async function registerPlayer(req, res, next) {
       !role ||
       !battingStyle ||
       !bowlingStyle ||
-      !preferredJerseyNumber
+      !preferredJerseyNumber ||
+      !preferredJerseySize
     ) {
       return res.status(400).json({
         success: false,
@@ -68,6 +70,7 @@ export async function registerPlayer(req, res, next) {
       battingStyle,
       bowlingStyle,
       preferredJerseyNumber: Number(preferredJerseyNumber),
+      preferredJerseySize,
 
       // No team assignment during registration
       approvalStatus: "pending",

@@ -52,6 +52,7 @@ const playerSchema = new mongoose.Schema(
     battingStyle: String,
     bowlingStyle: String,
     preferredJerseyNumber: Number,
+    preferredJerseySize: String,
     photo: String,
 
     registrationFeeStatus: {

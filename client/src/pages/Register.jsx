@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
@@ -21,6 +21,8 @@ const bowlingStyles = [
   "LEFT_ARM_CHINAMAN",
 ];
 
+const jerseySizes = ["XS", "S", "M", "L", "XL", "XXL"];
+
 const inputClass =
   "mt-2 w-full rounded-xl border border-[#293b55] bg-[#050817] px-4 py-3 text-white outline-none transition focus:border-[#f4c34e]";
 
@@ -32,7 +34,6 @@ const formatLabel = (value) =>
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -42,38 +43,6 @@ export default function Register() {
 
   const [utr, setUtr] = useState("");
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-
-  const submitPaymentProof = async (e) => {
-    e.preventDefault();
-
-    if (!utr.trim()) {
-      return alert("Please enter your UTR number.");
-    }
-
-    if (!paymentScreenshot) {
-      return alert("Please upload your payment screenshot.");
-    }
-
-    const formData = new FormData();
-    formData.append("utr", utr.trim());
-    formData.append("screenshot", paymentScreenshot);
-
-    try {
-      setPaymentSubmitting(true);
-
-      const { data } = await api.post("/player-payment/submit-proof", formData);
-      console.log("datadatadata", data);
-
-      setPaymentStatus("submitted");
-      alert(data.message);
-
-      // Refresh your existing registration/application data here if needed.
-    } catch (error) {
-      alert(error.response?.data?.message || "Unable to submit payment proof.");
-    } finally {
-      setPaymentSubmitting(false);
-    }
-  };
 
   const [form, setForm] = useState({
     name: "",
@@ -91,6 +60,12 @@ export default function Register() {
     battingStyle: "RIGHT_HAND",
     bowlingStyle: "NONE",
     preferredJerseyNumber: "",
+    preferredJerseySize: "",
+
+    // Team owner details
+    teamName: "",
+    coOwnerName: "",
+    coOwnerPhone: "",
   });
 
   useEffect(() => {
@@ -127,7 +102,10 @@ export default function Register() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === "name" ? { fullName: value } : {}),
+
+      // Keep player full name in sync with account name.
+      // Do not overwrite it with the team name for team owners.
+      ...(name === "name" && prev.role === "player" ? { fullName: value } : {}),
     }));
   }
 
@@ -135,12 +113,27 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
-    if (form.role === "player") {
-      if (!form.tournamentId) {
-        setError("Please select a tournament.");
-        return;
-      }
+    if (!form.name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
 
+    if (!form.phone.trim()) {
+      setError("Please enter your phone number.");
+      return;
+    }
+
+    if (!form.password || form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (!form.tournamentId) {
+      setError("Please select a tournament.");
+      return;
+    }
+
+    if (form.role === "player") {
       if (!utr.trim()) {
         setError("Please enter your UTR number.");
         return;
@@ -150,6 +143,27 @@ export default function Register() {
         setError("Please upload your payment screenshot.");
         return;
       }
+
+      if (!form.preferredJerseySize) {
+        setError("Please select your jersey size.");
+        return;
+      }
+
+      const jerseyNumber = Number(form.preferredJerseyNumber);
+
+      if (
+        !Number.isInteger(jerseyNumber) ||
+        jerseyNumber < 1 ||
+        jerseyNumber > 99
+      ) {
+        setError("Please enter a jersey number between 1 and 99.");
+        return;
+      }
+    }
+
+    if (form.role === "team_owner" && !form.teamName.trim()) {
+      setError("Please enter your team name.");
+      return;
     }
 
     setBusy(true);
@@ -157,28 +171,65 @@ export default function Register() {
     try {
       // STEP 1: Register account
       await register({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
         password: form.password,
         role: form.role,
       });
 
-      // Team owner registration
+      // STEP 2: Team owner flow
       if (form.role === "team_owner") {
-        navigate("/registration", { replace: true });
+        // Create team application
+        const teamPayload = {
+          tournamentId: form.tournamentId,
+          name: form.teamName.trim(),
+          coOwnerName: form.coOwnerName.trim(),
+          coOwnerPhone: form.coOwnerPhone.trim(),
+        };
+
+        const teamResponse = await api.post("/registrations/team", teamPayload);
+
+        console.log("Team created:", teamResponse.data);
+
+        // Submit team payment proof
+        const paymentData = new FormData();
+        paymentData.append("utr", utr.trim());
+        paymentData.append("screenshot", paymentScreenshot);
+
+        const paymentResponse = await api.post(
+          "/team-payment/submit-proof",
+          paymentData,
+        );
+
+        console.log("Team payment proof submitted:", paymentResponse.data);
+
+        alert(
+          paymentResponse.data?.message ||
+            "Team application and payment proof submitted successfully!",
+        );
+
+        navigate("/registration", {
+          replace: true,
+          state: {
+            message:
+              "Your team application and payment proof have been submitted. Awaiting admin verification.",
+          },
+        });
+
         return;
       }
 
-      // STEP 2: Create player application
+      // STEP 3: Create player application
       const playerPayload = {
         tournamentId: form.tournamentId,
-        fullName: form.fullName || form.name,
+        fullName: form.fullName.trim() || form.name.trim(),
         category: form.category,
         role: form.playingRole,
         battingStyle: form.battingStyle,
         bowlingStyle: form.bowlingStyle,
         preferredJerseyNumber: Number(form.preferredJerseyNumber),
+        preferredJerseySize: form.preferredJerseySize,
       };
 
       const playerResponse = await api.post(
@@ -188,7 +239,7 @@ export default function Register() {
 
       console.log("Player created:", playerResponse.data);
 
-      // STEP 3: Submit UTR and screenshot
+      // STEP 4: Submit UTR and screenshot
       const paymentData = new FormData();
 
       paymentData.append("utr", utr.trim());
@@ -226,11 +277,14 @@ export default function Register() {
       setBusy(false);
     }
   }
+
   const REGISTRATION_FEES = {
     player: 1200,
     team_owner: 15000,
   };
+
   const registrationFee = REGISTRATION_FEES[form.role];
+
   return (
     <div className="min-h-screen bg-[#050817] px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-3xl">
@@ -241,11 +295,10 @@ export default function Register() {
 
           <p className="mt-3 font-bold text-[#f4c34e]">SACL 2.0</p>
 
-          <h1 className="mt-2 text-3xl font-black">Player Registration</h1>
+          <h1 className="mt-2 text-3xl font-black">Registration</h1>
 
           <p className="mt-2 text-sm text-[#a6b4c8]">
-            Create your account, complete your player profile and pay your
-            registration fee.
+            Create your account and complete your registration.
           </p>
         </div>
 
@@ -363,7 +416,7 @@ export default function Register() {
             </p>
           </section>
 
-          {form.role === "player" && (
+          {form.role === "player" ? (
             <>
               {/* PLAYER DETAILS */}
               <section className="mt-8 border-t border-[#293b55] pt-6">
@@ -387,6 +440,7 @@ export default function Register() {
                         className={inputClass}
                       >
                         <option value="">Select tournament</option>
+
                         {tournaments.map((t) => (
                           <option key={t._id} value={t._id}>
                             {t.name}
@@ -460,51 +514,43 @@ export default function Register() {
                     </label>
 
                     <label className={labelClass}>
-                      Preferred Jersey Number
+                      Preferred Jersey Size
                       <select
+                        required
+                        name="preferredJerseySize"
+                        value={form.preferredJerseySize}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        <option value="">Select jersey size</option>
+
+                        {jerseySizes.map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={labelClass}>
+                      Preferred Jersey Number
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        placeholder="45"
                         required
                         name="preferredJerseyNumber"
                         value={form.preferredJerseyNumber}
                         onChange={change}
                         className={inputClass}
-                      >
-                        <option value="">Select jersey number</option>
-                        {Array.from({ length: 99 }, (_, i) => i + 1).map(
-                          (number) => (
-                            <option key={number} value={number}>
-                              {number}
-                            </option>
-                          ),
-                        )}
-                      </select>
+                      />
                     </label>
                   </div>
                 )}
               </section>
 
-              {/* PAYMENT */}
-              {/* <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5">
-                <h2 className="text-lg font-bold text-[#f4c34e]">
-                  3. Registration Payment
-                </h2>
-
-                <p className="mt-2 text-sm text-[#a6b4c8]">
-                  Complete your registration payment securely through PhonePe.
-                  Your application will be sent for admin approval after
-                  payment.
-                </p>
-
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="text-sm text-[#c0ccdc]">
-                    Registration Fee
-                  </span>
-                  <span className="text-xl font-black text-[#f4c34e]">
-                    Payable at checkout
-                  </span>
-                </div>
-              </section> */}
-
-              {/* PAYMENT */}
+              {/* PLAYER PAYMENT */}
               <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -594,9 +640,8 @@ export default function Register() {
                   </div>
                 </div>
 
-                {/* UTR AND SCREENSHOT FORM */}
+                {/* UTR AND SCREENSHOT */}
                 <div className="mt-6 space-y-5">
-                  {" "}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">
                       UTR / Transaction Reference Number
@@ -617,6 +662,7 @@ export default function Register() {
                       transaction details.
                     </p>
                   </div>
+
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-white">
                       Payment Screenshot
@@ -637,6 +683,264 @@ export default function Register() {
                       (maximum 5 MB).
                     </p>
                   </div>
+
+                  {paymentScreenshot && (
+                    <div className="rounded-xl border border-white/10 bg-[#050817] p-3">
+                      <p className="mb-2 text-xs text-[#a6b4c8]">
+                        Selected screenshot
+                      </p>
+
+                      <p className="truncate text-sm text-white">
+                        {paymentScreenshot.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              {/* TEAM OWNER DETAILS */}
+              <section className="mt-8 border-t border-[#293b55] pt-6">
+                <h2 className="text-lg font-bold text-[#f4c34e]">
+                  2. Team Owner Details
+                </h2>
+
+                {loadingOptions ? (
+                  <p className="mt-4 text-sm text-[#a6b4c8]">
+                    Loading tournaments...
+                  </p>
+                ) : (
+                  <div className="grid gap-1 sm:grid-cols-2 sm:gap-4">
+                    <label className={`${labelClass} sm:col-span-2`}>
+                      Select Tournament
+                      <select
+                        required
+                        name="tournamentId"
+                        value={form.tournamentId}
+                        onChange={change}
+                        className={inputClass}
+                      >
+                        <option value="">Select tournament</option>
+
+                        {tournaments.map((t) => (
+                          <option key={t._id} value={t._id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={`${labelClass} sm:col-span-2`}>
+                      Team Name
+                      <input
+                        required
+                        name="teamName"
+                        value={form.teamName}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter team name"
+                      />
+                    </label>
+
+                    <label className={labelClass}>
+                      Primary Owner Name
+                      <input
+                        required
+                        name="fullName"
+                        value={form.fullName}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter owner name"
+                      />
+                    </label>
+
+                    <label className={labelClass}>
+                      Owner Email Address
+                      <input
+                        type="email"
+                        name="email"
+                        value={form.email}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter email address"
+                      />
+                    </label>
+
+                    <label className={labelClass}>
+                      Owner Phone Number
+                      <input
+                        required
+                        type="tel"
+                        name="phone"
+                        value={form.phone}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter phone number"
+                        pattern="[+]?[0-9\s()-]{10,15}"
+                      />
+                    </label>
+
+                    <label className={labelClass}>
+                      Co-owner Name
+                      <input
+                        name="coOwnerName"
+                        value={form.coOwnerName}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter co-owner name"
+                      />
+                    </label>
+
+                    <label className={labelClass}>
+                      Co-owner Phone
+                      <input
+                        name="coOwnerPhone"
+                        type="tel"
+                        value={form.coOwnerPhone}
+                        onChange={change}
+                        className={inputClass}
+                        placeholder="Enter co-owner phone"
+                      />
+                    </label>
+                  </div>
+                )}
+              </section>
+
+              {/* PLAYER PAYMENT */}
+              <section className="mt-8 rounded-2xl border border-[#f4c34e]/20 bg-[#1b2d45] p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#f4c34e]">
+                      3. Registration Payment
+                    </h2>
+
+                    <p className="mt-1 text-sm text-[#a6b4c8]">
+                      Scan the official SACL QR code and pay{" "}
+                      <strong className="text-[#f4c34e]">
+                        ₹{registrationFee.toLocaleString("en-IN")}
+                      </strong>{" "}
+                      to complete your registration.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                    Manual verification
+                  </span>
+                </div>
+
+                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                  {/* QR CODE */}
+                  <div className="rounded-xl border border-white/10 bg-white p-4 text-center">
+                    <h3 className="mb-3 text-sm font-bold text-slate-800">
+                      Scan & Pay using UPI
+                    </h3>
+
+                    <img
+                      src="/images/sacl-payment-qr.jpeg"
+                      alt="SACL registration payment QR code"
+                      className="mx-auto aspect-square w-full max-w-[250px] rounded-lg object-contain"
+                      onError={(e) => {
+                        console.error("QR image failed:", e.currentTarget.src);
+                      }}
+                    />
+
+                    <p className="mt-3 text-xs text-slate-500">
+                      Scan this QR code using Google Pay, PhonePe, Paytm or any
+                      UPI app.
+                    </p>
+                  </div>
+
+                  {/* PAYMENT INSTRUCTIONS */}
+                  <div className="flex flex-col justify-center">
+                    <h3 className="font-semibold text-white">
+                      Payment instructions
+                    </h3>
+
+                    <ol className="mt-3 space-y-3 text-sm text-[#a6b4c8]">
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          1
+                        </span>
+                        Scan the SACL QR code using your UPI app.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          2
+                        </span>
+                        Pay the registration fee shown by the app.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          3
+                        </span>
+                        Copy the UTR / transaction reference number.
+                      </li>
+
+                      <li className="flex gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
+                          4
+                        </span>
+                        Upload the payment screenshot and enter your UTR below.
+                      </li>
+                    </ol>
+
+                    <div className="mt-5 rounded-xl border border-[#f4c34e]/20 bg-[#f4c34e]/5 p-3">
+                      <p className="text-xs leading-5 text-[#f4c34e]">
+                        Your payment will remain pending until the SACL admin
+                        verifies the transaction. Do not submit someone else's
+                        UTR or payment screenshot.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* UTR AND SCREENSHOT */}
+                <div className="mt-6 space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-white">
+                      UTR / Transaction Reference Number
+                    </label>
+
+                    <input
+                      type="text"
+                      value={utr}
+                      onChange={(e) => setUtr(e.target.value)}
+                      placeholder="Enter your 12-digit UTR / reference number"
+                      maxLength={30}
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm text-white outline-none transition focus:border-[#f4c34e]"
+                    />
+
+                    <p className="mt-1 text-xs text-[#a6b4c8]">
+                      You can find this number in your successful UPI
+                      transaction details.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-white">
+                      Payment Screenshot
+                    </label>
+
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      required
+                      onChange={(e) =>
+                        setPaymentScreenshot(e.target.files?.[0] || null)
+                      }
+                      className="block w-full cursor-pointer rounded-xl border border-white/10 bg-[#050817] p-3 text-sm text-[#a6b4c8] file:mr-4 file:rounded-lg file:border-0 file:bg-[#f4c34e] file:px-4 file:py-2 file:font-bold file:text-[#101827]"
+                    />
+
+                    <p className="mt-1 text-xs text-[#a6b4c8]">
+                      Upload a clear screenshot of the successful transaction
+                      (maximum 5 MB).
+                    </p>
+                  </div>
+
                   {paymentScreenshot && (
                     <div className="rounded-xl border border-white/10 bg-[#050817] p-3">
                       <p className="mb-2 text-xs text-[#a6b4c8]">
@@ -655,7 +959,7 @@ export default function Register() {
 
           <button
             type="submit"
-            disabled={busy || (form.role === "player" && loadingOptions)}
+            disabled={busy || loadingOptions}
             className="mt-7 w-full rounded-xl bg-[#f4c34e] py-4 font-black text-[#101827] transition hover:bg-[#ffd36a] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
@@ -664,6 +968,7 @@ export default function Register() {
                 ? "Submit Registration & Payment Proof"
                 : "Create Team Owner Account"}
           </button>
+
           <p className="mt-5 text-center text-sm text-[#a6b4c8]">
             Already registered?{" "}
             <Link to="/login" className="font-bold text-[#f4c34e]">

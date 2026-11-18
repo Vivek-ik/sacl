@@ -1703,6 +1703,194 @@ function PaymentReviewModal({ player, onClose, onReviewed }) {
   );
 }
 
+function EditPlayerModal({ player, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    fullName: player.fullName || "",
+    category: player.category || "A",
+    role: player.role || "",
+    battingStyle: player.battingStyle || "",
+    bowlingStyle: player.bowlingStyle || "",
+    preferredJerseyNumber: player.preferredJerseyNumber ?? "",
+  });
+
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditPlayer = async (e) => {
+    e.preventDefault();
+
+    if (!form.fullName.trim()) {
+      alert("Player name is required.");
+      return;
+    }
+
+    if (
+      form.preferredJerseyNumber === "" ||
+      Number(form.preferredJerseyNumber) < 0
+    ) {
+      alert("Enter a valid jersey number.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await api.patch(`/admin/players/${player._id}`, {
+        ...form,
+        fullName: form.fullName.trim(),
+        preferredJerseyNumber: Number(form.preferredJerseyNumber),
+      });
+
+      alert("Player information updated successfully.");
+      await onSaved();
+      onClose();
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm text-white outline-none focus:border-lime/50";
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-3 sm:p-5">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-[#0d192c] shadow-2xl">
+        <div className="sticky top-0 flex items-center justify-between border-b border-white/10 bg-[#0d192c] p-5">
+          <div>
+            <h2 className="text-xl font-bold">Edit Player</h2>
+            <p className="mt-1 text-sm text-white/50">
+              Update player registration information.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-white/10 px-3 py-2 hover:bg-white/10"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleEditPlayer} className="space-y-5 p-5">
+          <div>
+            <label className="mb-2 block text-sm text-white/70">
+              Player Name
+            </label>
+            <input
+              name="fullName"
+              value={form.fullName}
+              onChange={handleChange}
+              className={inputClass}
+              required
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                Category
+              </label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                {["ICONIC", "A", "B", "C", "D"].map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                Playing Role
+              </label>
+              <input
+                name="role"
+                value={form.role}
+                onChange={handleChange}
+                placeholder="e.g. all_rounder"
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                Batting Style
+              </label>
+              <input
+                name="battingStyle"
+                value={form.battingStyle}
+                onChange={handleChange}
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                Bowling Style
+              </label>
+              <input
+                name="bowlingStyle"
+                value={form.bowlingStyle}
+                onChange={handleChange}
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                Jersey Number
+              </label>
+              <input
+                type="number"
+                min="0"
+                name="preferredJerseyNumber"
+                value={form.preferredJerseyNumber}
+                onChange={handleChange}
+                className={inputClass}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold hover:bg-white/5"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-xl bg-lime px-5 py-3 text-sm font-bold text-[#071b16] disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function PlayersManagement() {
   const [players, setPlayers] = useState([]);
   const [stats, setStats] = useState({});
@@ -1715,6 +1903,7 @@ export function PlayersManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   async function fetchPlayers() {
     try {
@@ -1865,16 +2054,27 @@ export function PlayersManagement() {
                       </span>
                     </button>
                   </td>
-{/* 
+                  {/* 
                   <td className="px-5 py-4">
                     <StatusBadge status={player.approvalStatus} />
                   </td> */}
                   <td className="px-5 py-4">
-                    <ReviewButtons
-                      item={player}
-                      type="player"
-                      onReviewed={fetchPlayers}
-                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlayer(player)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#f4c34e]/30 bg-[#f4c34e]/10 px-3 py-2 text-xs font-semibold text-[#f4c34e] transition hover:bg-[#f4c34e]/20"
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </button>
+
+                      <ReviewButtons
+                        item={player}
+                        type="player"
+                        onReviewed={fetchPlayers}
+                      />
+                    </div>
                   </td>
                 </tr>
               )}
@@ -1889,6 +2089,13 @@ export function PlayersManagement() {
           player={selectedPayment}
           onClose={() => setSelectedPayment(null)}
           onReviewed={fetchPlayers}
+        />
+      )}
+      {selectedPlayer && (
+        <EditPlayerModal
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+          onSaved={fetchPlayers}
         />
       )}
     </div>
