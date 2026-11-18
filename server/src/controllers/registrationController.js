@@ -101,7 +101,7 @@ export async function registerTeam(req, res, next) {
     // Find the selected tournament.
     const tournament = await Tournament.findOne({
       _id: tournamentId,
-      status: ["upcoming", "approved"],
+      status: ["upcoming", "active"],
     });
 
     if (!tournament) {
