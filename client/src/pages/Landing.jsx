@@ -381,13 +381,13 @@ export default function Landing() {
                 <ArrowRight size={18} />
               </button>
 
-              {/* <Link
-                to="/tournaments"
+              <Link
+                to="/register"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold text-white transition hover:border-amber-400"
               >
                 <Trophy size={18} />
-                View Tournaments
-              </Link> */}
+                Register now
+              </Link>
             </div>
           </div>
 
