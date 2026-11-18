@@ -1278,13 +1278,48 @@ function ManagementFilters({
   );
 }
 
+import { Loader2, CheckCircle } from "lucide-react";
+
 function ReviewButtons({ item, type, onReviewed }) {
   const [busy, setBusy] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState("");
 
-  async function review(status) {
-    if (!window.confirm(`${status} this ${type}?`)) return;
+  const isPaid = item.registrationFeeStatus === "paid";
+
+  async function updatePaymentStatus() {
+    if (busy || isPaid) return;
+
+    if (!window.confirm("Mark this registration fee as paid?")) return;
 
     setBusy(true);
+    setProcessingStatus("payment");
+
+    try {
+      await api.patch(`/admin/${type}s/${item._id}/payment-status`, {
+        registrationFeeStatus: "paid",
+      });
+
+      await onReviewed();
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+      setProcessingStatus("");
+    }
+  }
+
+  async function review(status) {
+    const action = status === "rejected" ? "Reject" : "Approve";
+
+    if (status === "approved" && !isPaid) {
+      alert("Please mark the registration fee as paid first.");
+      return;
+    }
+
+    if (!window.confirm(`${action} this ${type}?`)) return;
+
+    setBusy(true);
+    setProcessingStatus(status);
 
     try {
       await api.patch(`/admin/${type}s/${item._id}/review`, {
@@ -1296,6 +1331,7 @@ function ReviewButtons({ item, type, onReviewed }) {
       alert(getErrorMessage(error));
     } finally {
       setBusy(false);
+      setProcessingStatus("");
     }
   }
 
@@ -1304,27 +1340,61 @@ function ReviewButtons({ item, type, onReviewed }) {
   }
 
   return (
-    <div className="flex gap-2">
-      <button
-        disabled={busy || item.registrationFeeStatus !== "paid"}
-        onClick={() => review("approved")}
-        title={
-          item.registrationFeeStatus !== "paid"
-            ? "Payment required before approval"
-            : "Approve application"
-        }
-        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Approve
-      </button>
+    <div className="flex flex-col gap-3">
+      {/* Payment status checkbox */}
+      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+        <input
+          type="checkbox"
+          checked={isPaid}
+          disabled={busy || isPaid}
+          onChange={updatePaymentStatus}
+          className="h-4 w-4 accent-emerald-500"
+        />
 
-      <button
-        disabled={busy}
-        onClick={() => review("rejected")}
-        className="rounded-lg bg-red-600/20 px-3 py-2 text-xs font-bold text-red-300 disabled:opacity-40"
-      >
-        Reject
-      </button>
+        <span className={isPaid ? "text-emerald-400" : "text-yellow-400"}>
+          {isPaid ? "Payment Paid" : "Mark as Paid"}
+        </span>
+
+        {processingStatus === "payment" && (
+          <Loader2 size={14} className="animate-spin" />
+        )}
+
+        {isPaid && <CheckCircle size={14} className="text-emerald-400" />}
+      </label>
+
+      {/* Approval buttons */}
+      <div className="flex gap-2">
+        <button
+          // disabled={busy || !isPaid}
+          onClick={() => review("approved")}
+          title={!isPaid ? "Mark payment as paid first" : "Approve application"}
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {processingStatus === "approved" ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              Approving...
+            </>
+          ) : (
+            "Approve"
+          )}
+        </button>
+
+        <button
+          disabled={busy}
+          onClick={() => review("rejected")}
+          className="inline-flex items-center gap-2 rounded-lg bg-red-600/20 px-3 py-2 text-xs font-bold text-red-300 disabled:opacity-40"
+        >
+          {processingStatus === "rejected" ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              Rejecting...
+            </>
+          ) : (
+            "Reject"
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1737,15 +1807,20 @@ function EditPlayerModal({ player, onClose, onSaved }) {
     }
 
     try {
-      setSaving(true);
-
-      await api.patch(`/admin/players/${player._id}`, {
-        ...form,
-        fullName: form.fullName.trim(),
+      const { data } = await api.patch(`/admin/players/${player._id}`, {
+        fullName: form.fullName,
+        category: form.category,
+        role: form.role,
+        battingStyle: form.battingStyle,
+        bowlingStyle: form.bowlingStyle,
         preferredJerseyNumber: Number(form.preferredJerseyNumber),
+        preferredJerseySize: form.preferredJerseySize,
       });
 
-      alert("Player information updated successfully.");
+      if (data.success) {
+        alert("Player updated successfully");
+        // await fetchPlayers();
+      }
       await onSaved();
       onClose();
     } catch (error) {

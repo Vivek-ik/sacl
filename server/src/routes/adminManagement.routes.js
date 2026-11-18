@@ -185,6 +185,78 @@ router.get("/teams/management", async (req, res, next) => {
   }
 });
 
+/**
+ * PATCH /api/admin/:entity/:id/payment-status
+ * Mark player/team registration fee as paid
+ */
+router.patch("/:entity/:id/payment-status", async (req, res, next) => {
+  try {
+    const { entity, id } = req.params;
+    const { registrationFeeStatus } = req.body;
+
+    // Validate entity
+    if (!["players", "teams"].includes(entity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid application type",
+      });
+    }
+
+    // Validate ID
+    if (!objectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid application ID",
+      });
+    }
+
+    // Only allow marking as paid through this endpoint
+    if (registrationFeeStatus !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment status",
+      });
+    }
+
+    const Model = entity === "players" ? Player : Team;
+
+    const application = await Model.findById(id);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    if (application.approvalStatus !== "pending") {
+      return res.status(409).json({
+        success: false,
+        message: "Only pending applications can have payment status updated",
+      });
+    }
+
+    if (application.registrationFeeStatus === "paid") {
+      return res.json({
+        success: true,
+        message: "Payment is already marked as paid",
+        application,
+      });
+    }
+
+    application.registrationFeeStatus = "paid";
+    await application.save();
+
+    return res.json({
+      success: true,
+      message: "Payment marked as paid successfully",
+      application,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PATCH /api/admin/players/:id/review
 router.patch("/players/:id/review", async (req, res, next) => {
   try {

@@ -17,7 +17,11 @@ router.patch("/applications/:entity/:id", reviewApplication);
 
 // Admin-only middleware
 const adminOnly = (req, res, next) => {
-  if (req.user?.role !== "admin" || req.user?.role === "super_admin" || req.user?.role === "org_admin") {
+  if (
+    req.user?.role !== "admin" ||
+    req.user?.role === "super_admin" ||
+    req.user?.role === "org_admin"
+  ) {
     return res.status(403).json({
       success: false,
       message: "Admin access required",
@@ -216,6 +220,93 @@ router.get("/players", async (req, res, next) => {
     res.json({
       success: true,
       players,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/players/:id
+ * Edit player registration details
+ */
+router.patch("/players/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // if (!objectId(id)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Invalid player ID",
+    //   });
+    // }
+
+    const player = await Player.findById(id);
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player not found",
+      });
+    }
+
+    const allowedFields = [
+      "fullName",
+      "category",
+      "role",
+      "battingStyle",
+      "bowlingStyle",
+      "preferredJerseyNumber",
+      "preferredJerseySize",
+    ];
+
+    const updates = Object.keys(req.body).filter((field) =>
+      allowedFields.includes(field),
+    );
+
+    if (!updates.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields provided for update",
+      });
+    }
+
+    for (const field of updates) {
+      const value = req.body[field];
+
+      if (field === "preferredJerseyNumber") {
+        const number = Number(value);
+
+        if (!Number.isInteger(number) || number < 1 || number > 99) {
+          return res.status(400).json({
+            success: false,
+            message: "Jersey number must be between 1 and 99",
+          });
+        }
+
+        player[field] = number;
+      } else {
+        if (typeof value !== "string" || !value.trim()) {
+          return res.status(400).json({
+            success: false,
+            message: `${field} must be a non-empty string`,
+          });
+        }
+
+        player[field] = value.trim();
+      }
+    }
+
+    await player.save();
+
+    const updatedPlayer = await Player.findById(id)
+      .populate("user", "name email phone")
+      .populate("tournament", "name season");
+
+    return res.status(200).json({
+      success: true,
+      message: "Player updated successfully",
+      player: updatedPlayer,
     });
   } catch (error) {
     next(error);

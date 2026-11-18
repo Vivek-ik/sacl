@@ -79,11 +79,11 @@ function HomeDashboard() {
 }
 
 function HomeRoute() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
-  if (!user) {
+  // if (!user) {
     return <Landing />;
-  }
+  // }
 
   return (
     <Protected>

@@ -242,6 +242,19 @@ function StatCard({ icon: Icon, label, value, detail }) {
   );
 }
 
+const getDashboardPath = (role) => {
+  const routes = {
+    player: "/registration",
+    team_owner: "/team",
+    auctioneer: "/auction",
+    admin: "/admin",
+    org_admin: "/admin",
+    super_admin: "/admin",
+  };
+
+  return routes[role] || "/login";
+};
+
 export default function Landing() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -251,12 +264,15 @@ export default function Landing() {
 
   const current = portalContent[activeTab];
 
-  const handleRegistration = () => {
-    console.log("Player Registration userr", user);
+  const dashboardPath = user ? getDashboardPath(user.role) : "/login";
 
-    // if (user) {
+  const handleRegistration = () => {
+    if (user) {
+      navigate(dashboardPath);
+      return;
+    }
+
     navigate("/register");
-    // }
   };
   const selectTab = (tab) => {
     setActiveTab(tab);
@@ -296,13 +312,32 @@ export default function Landing() {
               Tournaments
             </Link>
 
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-bold hover:border-amber-400 hover:text-amber-400"
-            >
-              <LogIn size={17} />
-              Register
-            </Link>
+            {user ? (
+              <Link
+                to={dashboardPath}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-black text-slate-950 hover:bg-amber-300"
+              >
+                <UserCheck size={17} />
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-300 hover:text-amber-400"
+                >
+                  Login
+                </Link>
+
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-bold hover:border-amber-400 hover:text-amber-400"
+                >
+                  <LogIn size={17} />
+                  Register
+                </Link>
+              </>
+            )}
 
             <button
               onClick={handleGetStarted}
@@ -311,7 +346,6 @@ export default function Landing() {
               Get Started
             </button>
           </div>
-
           <button
             className="rounded-xl border border-white/10 p-2 sm:hidden"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -332,22 +366,43 @@ export default function Landing() {
                 Explore Tournaments
               </Link>
 
-              <Link
-                to="/login"
-                className="rounded-xl bg-[#17283e] p-3"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Login
-              </Link>
+              {user ? (
+                <Link
+                  to={dashboardPath}
+                  className="rounded-xl bg-amber-400 p-3 font-bold text-slate-950"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <UserCheck size={17} className="mr-2 inline" />
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="rounded-xl bg-[#17283e] p-3"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+
+                  <Link
+                    to="/register"
+                    className="rounded-xl bg-[#17283e] p-3"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
 
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   handleGetStarted();
                 }}
-                className="rounded-xl bg-amber-400 p-3 font-bold text-slate-950"
+                className="rounded-xl bg-[#17283e] p-3 font-bold text-white"
               >
-                Get Started
+                Explore Portals
               </button>
             </div>
           </div>
@@ -381,13 +436,23 @@ export default function Landing() {
                 <ArrowRight size={18} />
               </button>
 
-              <Link
-                to="/register"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold text-white transition hover:border-amber-400"
-              >
-                <Trophy size={18} />
-                Register now
-              </Link>
+              {user ? (
+                <Link
+                  to={dashboardPath}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold text-white transition hover:border-amber-400"
+                >
+                  <UserCheck size={18} />
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 font-bold text-white transition hover:border-amber-400"
+                >
+                  <Trophy size={18} />
+                  Register now
+                </Link>
+              )}
             </div>
           </div>
 
