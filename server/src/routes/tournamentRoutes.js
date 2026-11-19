@@ -6,6 +6,7 @@ import {
   approveTournament,
   rejectTournament,
   updateTournament,
+  deleteTournament,
 } from "../controllers/tournamentController.js";
 import { protect, allowRoles } from "../middleware/auth.js";
 import { requireOrganization } from "../middleware/requireOrganization.js";
@@ -20,7 +21,8 @@ router.get("/", getTournaments);
 router.get("/:id", getTournamentById);
 router.post("/", createTournament);
 
-router.put("/:id", updateTournament);
+router.patch("/:id", updateTournament);
+router.delete("/:id", protect, deleteTournament);
 
 router.patch("/:id/approved", approveTournament);
 router.patch("/:id/rejected", rejectTournament);

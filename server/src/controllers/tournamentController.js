@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Tournament from "../models/Tournament.js";
+import Player from "../models/Player.js";
+import Team from "../models/Team.js";
 
 export const createTournament = async (req, res, next) => {
   try {
@@ -387,7 +389,13 @@ export const updateTournament = async (req, res, next) => {
 
     // Validate tournament lifecycle status
     if (updates.status !== undefined) {
-      const allowedStatuses = ["draft", "upcoming", "live", "completed"];
+      const allowedStatuses = [
+        "draft",
+        "upcoming",
+        "active",
+        "completed",
+        "cancelled",
+      ];
 
       if (!allowedStatuses.includes(updates.status)) {
         return res.status(400).json({
@@ -414,6 +422,58 @@ export const updateTournament = async (req, res, next) => {
       });
     }
 
+    next(error);
+  }
+};
+
+// DELETE TOURNAMENT
+export const deleteTournament = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tournament ID.",
+      });
+    }
+
+    // Restrict deletion to the current organization.
+    const tournament = await Tournament.findOne({
+      _id: id,
+      organization: req.organizationId,
+    });
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: "Tournament not found.",
+      });
+    }
+
+    // Preserve applications and team data.
+    const [playerCount, teamCount] = await Promise.all([
+      Player.countDocuments({ tournament: id }),
+      Team.countDocuments({ tournament: id }),
+    ]);
+
+    if (playerCount > 0 || teamCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Cannot delete this tournament because player or team applications already exist.",
+        playerCount,
+        teamCount,
+      });
+    }
+
+    await tournament.deleteOne();
+
+    return res.json({
+      success: true,
+      message: "Tournament deleted successfully.",
+    });
+  } catch (error) {
     next(error);
   }
 };

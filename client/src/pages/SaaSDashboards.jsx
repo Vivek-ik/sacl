@@ -12,6 +12,7 @@ import {
   Search,
   ArrowUpRight,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import AddTournamentsModal from "../components/AddTournamentsModal";
@@ -748,6 +749,7 @@ export function Plans() {
 
 export function Tournaments() {
   const [addTournamentsModalOpen, setAddTournamentsModalOpen] = useState(false);
+  const [selectedTournament, setSelectedTournament] = useState(null);
 
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -775,17 +777,40 @@ export function Tournaments() {
     }
   };
 
-  const handleEditTournament = async (tournamentId, formData) => {
+  const handleEditTournament = async (updatedTournament) => {
+    setTournaments((current) =>
+      current.map((tournament) =>
+        tournament._id === updatedTournament._id
+          ? updatedTournament
+          : tournament,
+      ),
+    );
+
+    setSelectedTournament(null);
+    setAddTournamentsModalOpen(false);
+
+    await fetchTournaments();
+  };
+
+  const handleDeleteTournament = async (tournament) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${tournament.name}"?\n\nThis action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
     try {
-      setActionLoading(tournamentId);
+      setActionLoading(tournament._id);
 
-      await api.put(`/tournaments/${tournamentId}`, formData);
+      await api.delete(`/tournaments/${tournament._id}`);
 
-      await fetchTournaments();
+      setTournaments((current) =>
+        current.filter((item) => item._id !== tournament._id),
+      );
 
-      alert("Tournament updated successfully.");
+      alert("Tournament deleted successfully.");
     } catch (error) {
-      alert(error.response?.data?.message || "Unable to update tournament.");
+      alert(error.response?.data?.message || "Unable to delete tournament.");
     } finally {
       setActionLoading(null);
     }
@@ -880,7 +905,12 @@ export function Tournaments() {
         title="Tournaments"
         description="Create and manage your cricket tournaments."
         action={
-          <PrimaryButton onClick={() => setAddTournamentsModalOpen(true)}>
+          <PrimaryButton
+            onClick={() => {
+              setSelectedTournament(null);
+              setAddTournamentsModalOpen(true);
+            }}
+          >
             Create Tournament
           </PrimaryButton>
         }
@@ -1070,48 +1100,67 @@ export function Tournaments() {
 
                       {/* Actions */}
                       <td className="px-5 py-4">
-                        {approvalStatus === "pending" ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              disabled={isProcessing}
-                              onClick={() =>
-                                handleTournamentApproval(
-                                  tournament._id,
-                                  "approved",
-                                )
-                              }
-                              className="rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              {isProcessing ? "Processing..." : "Approve"}
-                            </button>
+                        <div className="flex min-w-[210px] flex-wrap items-center gap-2">
+                          {/* Edit */}
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => {
+                              setSelectedTournament(tournament);
+                              setAddTournamentsModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-400 transition hover:bg-blue-500/20 disabled:opacity-40"
+                          >
+                            <Pencil size={14} />
+                            Edit
+                          </button>
 
-                            <button
-                              disabled={isProcessing}
-                              onClick={() =>
-                                handleTournamentApproval(
-                                  tournament._id,
-                                  "rejected",
-                                )
-                              }
-                              className="rounded-lg bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-emerald-100/40">
-                            No actions available
-                          </span>
-                        )}
+                          {/* Delete */}
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => handleDeleteTournament(tournament)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+                          >
+                            {isProcessing ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                            Delete
+                          </button>
 
-                        {/* <button
-                          type="button"
-                          onClick={() => handleEditTournament(tournament._id)}
-                          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#f4c34e]/30 bg-[#f4c34e]/10 px-3.5 py-2 text-xs font-semibold text-[#f4c34e] transition-all duration-200 hover:border-[#f4c34e] hover:bg-[#f4c34e] hover:text-[#101827] focus:outline-none focus:ring-2 focus:ring-[#f4c34e]/40"
-                        >
-                          <Pencil size={14} />
-                          Edit Tournament
-                        </button> */}
+                          {/* Approve / Reject */}
+                          {approvalStatus === "pending" && (
+                            <>
+                              <button
+                                disabled={isProcessing}
+                                onClick={() =>
+                                  handleTournamentApproval(
+                                    tournament._id,
+                                    "approved",
+                                  )
+                                }
+                                className="rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/25 disabled:opacity-40"
+                              >
+                                {isProcessing ? "Processing..." : "Approve"}
+                              </button>
+
+                              <button
+                                disabled={isProcessing}
+                                onClick={() =>
+                                  handleTournamentApproval(
+                                    tournament._id,
+                                    "rejected",
+                                  )
+                                }
+                                className="rounded-lg bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/25 disabled:opacity-40"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1125,113 +1174,22 @@ export function Tournaments() {
       {/* Create tournament modal */}
       {addTournamentsModalOpen && (
         <AddTournamentsModal
-          onClose={() => setAddTournamentsModalOpen(false)}
+          tournament={selectedTournament}
+          onClose={() => {
+            setAddTournamentsModalOpen(false);
+            setSelectedTournament(null);
+          }}
           onCreated={() => {
             setAddTournamentsModalOpen(false);
+            setSelectedTournament(null);
             fetchTournaments();
           }}
+          onUpdate={handleEditTournament}
         />
       )}
     </div>
   );
 }
-
-// export function TeamsManagement() {
-//   return (
-//     <div className="w-full min-w-0">
-//       <PageHeader
-//         title="Teams"
-//         description="Manage participating teams across your tournaments."
-//       />
-
-//       <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-//         <StatCard title="Total Teams" icon={ShieldCheck} />
-//         <StatCard title="Approved Teams" icon={UserCheck} />
-//         <StatCard title="Pending Approval" icon={Users} />
-//         <StatCard title="Available Slots" icon={Trophy} />
-//       </div>
-
-//       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-//         <SearchBar placeholder="Search team name or owner..." />
-
-//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
-//           <option>All tournaments</option>
-//         </select>
-
-//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
-//           <option>All statuses</option>
-//           <option>Approved</option>
-//           <option>Pending</option>
-//           <option>Rejected</option>
-//         </select>
-//       </div>
-
-//       <Panel title="Participating Teams">
-//         <TableShell
-//           columns={[
-//             "Team",
-//             "Owner",
-//             "Tournament",
-//             "Players",
-//             "Squad",
-//             "Purse Remaining",
-//             "Status",
-//             "Actions",
-//           ]}
-//           emptyTitle="No teams loaded"
-//           emptyDescription="Teams registered for your tournaments will appear here."
-//         />
-//       </Panel>
-//     </div>
-//   );
-// }
-
-// export function PlayersManagement() {
-//   return (
-//     <div className="w-full min-w-0">
-//       <PageHeader
-//         title="Players"
-//         description="Manage player registrations, approvals and auction eligibility."
-//       />
-
-//       <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-//         <StatCard title="Registered Players" icon={Users} />
-//         <StatCard title="Approved Players" icon={UserCheck} />
-//         <StatCard title="Pending Approval" icon={ShieldCheck} />
-//         <StatCard title="Auctioned Players" icon={Trophy} />
-//       </div>
-
-//       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-//         <SearchBar placeholder="Search player name..." />
-
-//         <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
-//           <option>All categories</option>
-//           <option>ICONIC</option>
-//           <option>A</option>
-//           <option>B</option>
-//           <option>C</option>
-//           <option>D</option>
-//         </select>
-//       </div>
-
-//       <Panel title="Player Registrations">
-//         <TableShell
-//           columns={[
-//             "Player",
-//             "Category",
-//             "Playing Role",
-//             "Team",
-//             "Registration",
-//             "Approval",
-//             "Actions",
-//           ]}
-//           emptyTitle="No players loaded"
-//           emptyDescription="Player registrations will appear here."
-//         />
-//       </Panel>
-//     </div>
-//   );
-// }
 
 function ManagementFilters({
   search,
@@ -1279,6 +1237,56 @@ function ManagementFilters({
 }
 
 import { Loader2, CheckCircle } from "lucide-react";
+
+function DeleteApplicationButton({ item, entity, onDeleted }) {
+  const [busy, setBusy] = useState(false);
+
+  const entityLabel = entity === "player" ? "player" : "team";
+  const displayName = entity === "player" ? item.fullName : item.name;
+
+  async function handleDelete() {
+    if (busy) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${entityLabel} "${displayName}"?\n\nThis action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setBusy(true);
+
+      const { data } = await api.delete(
+        `/admin/applications/${entity}/${item._id}`,
+      );
+
+      if (data.success) {
+        alert(data.message || `${entityLabel} deleted successfully.`);
+        await onDeleted();
+      }
+    } catch (error) {
+      alert(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={handleDelete}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {busy ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : (
+        <Trash2 size={14} />
+      )}
+      {busy ? "Deleting..." : "Delete"}
+    </button>
+  );
+}
 
 function ReviewButtons({ item, type, onReviewed }) {
   const [busy, setBusy] = useState(false);
@@ -1562,6 +1570,11 @@ export function TeamsManagement() {
                       item={team}
                       type="team"
                       onReviewed={fetchTeams}
+                    />
+                    <DeleteApplicationButton
+                      item={team}
+                      entity="team"
+                      onDeleted={fetchTeams}
                     />
                   </td>
                 </tr>
@@ -2148,6 +2161,11 @@ export function PlayersManagement() {
                         item={player}
                         type="player"
                         onReviewed={fetchPlayers}
+                      />
+                      <DeleteApplicationButton
+                        item={player}
+                        entity="player"
+                        onDeleted={fetchPlayers}
                       />
                     </div>
                   </td>
