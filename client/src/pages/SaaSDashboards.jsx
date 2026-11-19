@@ -18,6 +18,8 @@ import { useEffect, useState } from "react";
 import AddTournamentsModal from "../components/AddTournamentsModal";
 import { api } from "../lib/api";
 
+import { Copy, Check } from "lucide-react";
+
 const getList = (data, keys = []) => {
   if (Array.isArray(data)) return data;
 
@@ -1592,6 +1594,19 @@ export function TeamsManagement() {
 function PaymentReviewModal({ player, onClose, onReviewed }) {
   const [busy, setBusy] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [utrCopied, setUtrCopied] = useState(false);
+
+  const copyUtr = async () => {
+    if (!player.paymentUtr) return;
+
+    try {
+      await navigator.clipboard.writeText(player.paymentUtr);
+      setUtrCopied(true);
+      setTimeout(() => setUtrCopied(false), 2000);
+    } catch {
+      alert("Unable to copy UTR");
+    }
+  };
 
   if (!player) return null;
 
@@ -1694,9 +1709,26 @@ function PaymentReviewModal({ player, onClose, onReviewed }) {
                 UTR / Transaction Reference
               </p>
 
-              <p className="mt-2 break-all text-lg font-bold tracking-wide text-[#f4c34e]">
-                {player.paymentUtr || "Not submitted"}
-              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <p className="break-all text-lg font-bold tracking-wide text-[#f4c34e]">
+                  {player.paymentUtr || "Not submitted"}
+                </p>
+
+                {player.paymentUtr && (
+                  <button
+                    type="button"
+                    onClick={copyUtr}
+                    title="Copy UTR"
+                    className="shrink-0 rounded-lg border border-white/10 p-2 text-white/60 transition hover:border-[#f4c34e]/40 hover:bg-[#f4c34e]/10 hover:text-[#f4c34e]"
+                  >
+                    {utrCopied ? (
+                      <Check size={17} className="text-emerald-400" />
+                    ) : (
+                      <Copy size={17} />
+                    )}
+                  </button>
+                )}
+              </div>
 
               <p className="mt-4 text-xs text-white/40">Submitted At</p>
 
