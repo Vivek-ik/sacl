@@ -1,4 +1,3 @@
-
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import {
   Trophy,
@@ -27,6 +26,7 @@ const superAdminLinks = [
   { to: "/super-admin/subscriptions", label: "Subscriptions", icon: Wallet },
   { to: "/super-admin/payments", label: "Payments", icon: CreditCard },
   { to: "/super-admin/plans", label: "Plans & Pricing", icon: Receipt },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const organizerLinks = [
@@ -38,6 +38,7 @@ const organizerLinks = [
   { to: "/scorers", label: "Scorer Management", icon: ClipboardList },
   { to: "/auction", label: "Auction", icon: Gavel },
   { to: "/live", label: "Live Scoreboard", icon: Activity },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const legacyAdminLinks = [
@@ -48,22 +49,26 @@ const legacyAdminLinks = [
   { to: "/scorers", label: "Scorer Management", icon: ClipboardList },
   { to: "/auction", label: "Auction", icon: Gavel },
   { to: "/live", label: "Live Scoreboard", icon: Activity },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const teamOwnerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/team", label: "My Team", icon: ShieldCheck },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const scorerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/scorer", label: "Scoring Dashboard", icon: Radio },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const playerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 export default function Layout({ children }) {
@@ -87,11 +92,9 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-[#050817] text-[#f1f5f9]">
-
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[#293b55] bg-[#0d192c]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-4 sm:px-5">
-
           <Link to="/" className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#f4c34e] text-[#101827] shadow-lg shadow-yellow-500/10">
               <Trophy size={22} />
@@ -112,9 +115,7 @@ export default function Layout({ children }) {
               <p className="max-w-[160px] truncate text-sm font-semibold text-white">
                 {user?.name}
               </p>
-              <p className="text-xs capitalize text-[#a6b4c8]">
-                {roleLabel}
-              </p>
+              <p className="text-xs capitalize text-[#a6b4c8]">{roleLabel}</p>
             </div>
 
             <button
@@ -134,10 +135,8 @@ export default function Layout({ children }) {
 
       {/* Main Layout */}
       <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-5 md:flex-row md:px-5">
-
         {/* Sidebar */}
         <aside className="h-fit rounded-2xl border border-[#293b55] bg-[#0d192c] p-3 shadow-xl shadow-black/10 md:sticky md:top-[90px] md:min-w-[230px]">
-
           <p className="mb-3 px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#a6b4c8]">
             {user?.role === "super_admin"
               ? "Platform Management"
@@ -168,9 +167,7 @@ export default function Layout({ children }) {
 
           {/* Sidebar Footer */}
           <div className="mt-6 hidden rounded-xl border border-[#293b55] bg-[#1b2d45]/60 p-3 md:block">
-            <p className="text-xs font-bold text-[#f4c34e]">
-              SACL 2.0
-            </p>
+            <p className="text-xs font-bold text-[#f4c34e]">SACL 2.0</p>
             <p className="mt-1 text-[11px] leading-relaxed text-[#a6b4c8]">
               Cricket auction and tournament management
             </p>
@@ -178,9 +175,7 @@ export default function Layout({ children }) {
         </aside>
 
         {/* Page Content */}
-        <main className="min-w-0 flex-1">
-          {children}
-        </main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

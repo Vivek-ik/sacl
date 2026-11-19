@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -21,10 +21,82 @@ const bowlingStyles = [
 ];
 
 const inputClass =
-  "mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 text-white outline-none focus:border-lime";
+  "mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-3 text-white outline-none focus:border-lime disabled:opacity-50";
 
-const formatLabel = (value) =>
-  value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const formatLabel = (value = "") =>
+  String(value)
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
+const formatStatus = (value) =>
+  value
+    ? String(value).charAt(0).toUpperCase() +
+      String(value).slice(1).toLowerCase()
+    : "Not submitted";
+
+const formatDate = (date) =>
+  date
+    ? new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+
+const getStatusClass = (value) => {
+  switch (String(value || "").toLowerCase()) {
+    case "approved":
+    case "paid":
+      return "border-lime/20 bg-lime/10 text-lime";
+
+    case "rejected":
+    case "failed":
+      return "border-red-500/20 bg-red-500/10 text-red-300";
+
+    case "pending":
+      return "border-yellow-500/20 bg-yellow-500/10 text-yellow-300";
+
+    default:
+      return "border-white/10 bg-white/5 text-emerald-100/50";
+  }
+};
+
+// Supports both old API responses and the new array-based response.
+function normalizeRegistrations(responseData) {
+  const result = responseData?.data || responseData || {};
+
+  const players = Array.isArray(result.players)
+    ? result.players
+    : result.player
+      ? [result.player]
+      : [];
+
+  const teams = Array.isArray(result.teams)
+    ? result.teams
+    : result.team
+      ? [result.team]
+      : [];
+
+  return { players, teams };
+}
+
+function getTournamentId(application) {
+  const tournament = application?.tournament;
+
+  if (typeof tournament === "string") return tournament;
+
+  return tournament?._id || application?.tournamentId || "";
+}
+
+function getTournamentName(application) {
+  const tournament = application?.tournament;
+
+  if (typeof tournament === "object" && tournament?.name) {
+    return tournament.name;
+  }
+
+  return application?.tournamentName || "Tournament";
+}
 
 export default function Registration() {
   const { user } = useAuth();
@@ -32,16 +104,22 @@ export default function Registration() {
   const isTeamOwner = user?.role === "team_owner";
   const kind = isTeamOwner ? "team" : "player";
 
-  const [data, setData] = useState({});
-  const [msg, setMsg] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const [teams, setTeams] = useState([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [data, setData] = useState({
+    players: [],
+    teams: [],
+  });
 
   const [tournaments, setTournaments] = useState([]);
+
+  const [initialLoading, setInitialLoading] = useState(true);
   const [tournamentsLoading, setTournamentsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [showForm, setShowForm] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
+
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [form, setForm] = useState({
     fullName: user?.name || "",
@@ -53,657 +131,718 @@ export default function Registration() {
     battingStyle: "RIGHT_HAND",
     bowlingStyle: "NONE",
     preferredJerseyNumber: "",
-    preferredTeamId: "",
 
     name: "",
     coOwnerName: "",
     coOwnerPhone: "",
   });
 
+  const applications = useMemo(
+    () => (isTeamOwner ? data.teams : data.players),
+    [isTeamOwner, data],
+  );
+
+  const registeredTournamentIds = useMemo(
+    () => applications.map(getTournamentId).filter(Boolean).map(String),
+    [applications],
+  );
+
+  const availableTournaments = useMemo(
+    () =>
+      tournaments.filter(
+        (tournament) =>
+          !registeredTournamentIds.includes(String(tournament._id)),
+      ),
+    [tournaments, registeredTournamentIds],
+  );
+
   useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      fullName: user?.name || prev.fullName,
-      email: user?.email || prev.email,
-      phone: user?.phone || prev.phone,
+    setForm((previous) => ({
+      ...previous,
+      fullName: user?.name || previous.fullName,
+      email: user?.email || previous.email,
+      phone: user?.phone || previous.phone,
     }));
   }, [user?.name, user?.email, user?.phone]);
 
-  useEffect(() => {
-    if (!isTeamOwner) {
-      loadTeams();
-    }
-  }, [isTeamOwner]);
-
-  async function loadTournaments() {
-    setTournamentsLoading(true);
-
+  // GET ALL USER REGISTRATIONS
+  const loadRegistrations = useCallback(async () => {
     try {
+      console.log("[Registration] Calling GET /registrations/me");
+
+      const response = await api.get("/registrations/me");
+
+      console.log("[Registration] API response:", response.data);
+
+      const registrations = normalizeRegistrations(response.data);
+
+      setData(registrations);
+
+      console.log("[Registration] Normalized registrations:", registrations);
+
+      return registrations;
+    } catch (err) {
+      console.error(
+        "[Registration] Failed to load registrations:",
+        err.response?.data || err,
+      );
+
+      throw err;
+    }
+  }, []);
+
+  // GET AVAILABLE PUBLIC TOURNAMENTS
+  const loadTournaments = useCallback(async () => {
+    try {
+      setTournamentsLoading(true);
+
+      console.log("[Registration] Calling GET /public/tournaments");
+
       const response = await api.get("/public/tournaments");
 
-      const list = Array.isArray(response.data)
-        ? response.data
-        : response.data?.tournaments || response.data?.data || [];
+      console.log("[Registration] Tournaments response:", response.data);
 
-      setTournaments(list);
+      const result = response.data?.data || response.data;
 
-      // Automatically select if only one tournament exists
-      if (list.length === 1) {
-        setSelectedTournamentId(list[0]._id);
-      }
-    } catch (error) {
-      console.error("Failed to load tournaments:", error);
+      const list = Array.isArray(result)
+        ? result
+        : result?.tournaments || result?.data || [];
+
+      setTournaments(Array.isArray(list) ? list : []);
+
+      return list;
+    } catch (err) {
+      console.error(
+        "[Registration] Failed to load tournaments:",
+        err.response?.data || err,
+      );
+
+      setError(
+        err.response?.data?.message ||
+          "Could not load tournaments. Please refresh the page.",
+      );
+
       setTournaments([]);
+      return [];
     } finally {
       setTournamentsLoading(false);
     }
-  }
-
-  async function loadTeams() {
-    setTeamsLoading(true);
-
-    try {
-      const response = await api.get("/registrations/available-teams");
-
-      setTeams(response.data.teams || []);
-    } catch (error) {
-      console.error("Failed to load approved teams:", error);
-      setTeams([]);
-    } finally {
-      setTeamsLoading(false);
-    }
-  }
-  async function load() {
-    try {
-      const response = await api.get("/registrations/me");
-      setData(response.data);
-    } catch (error) {
-      console.error("Registration loading failed:", error);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    loadTournaments();
   }, []);
 
-  const formatStatus = (value) =>
-    value
-      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
-      : "Not submitted";
+  // INITIAL API CALLS
+  const refreshPageData = useCallback(async () => {
+    setInitialLoading(true);
+    setError("");
 
-  const getStatusClass = (value) => {
-    switch (value?.toLowerCase()) {
-      case "approved":
-      case "paid":
-        return "bg-lime/10 text-lime border-lime/20";
+    const results = await Promise.allSettled([
+      loadRegistrations(),
+      loadTournaments(),
+    ]);
 
-      case "rejected":
-      case "failed":
-        return "bg-red-500/10 text-red-300 border-red-500/20";
-
-      case "pending":
-        return "bg-yellow-500/10 text-yellow-300 border-yellow-500/20";
-
-      default:
-        return "bg-white/5 text-emerald-100/50 border-white/10";
+    if (results[0].status === "rejected") {
+      setError(
+        results[0].reason?.response?.data?.message ||
+          "Could not load your registrations. Please try again.",
+      );
     }
-  };
 
-  const formatDate = (date) =>
-    date
-      ? new Date(date).toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : "—";
+    setInitialLoading(false);
+  }, [loadRegistrations, loadTournaments]);
 
-  const team = data.team;
-  const player = data.player;
-  //   const application = isTeamOwner ? team : player;
-  //   const status = application?.approvalStatus || "Not submitted";
+  useEffect(() => {
+    if (!user) return;
 
-  function updateField(e) {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
+    refreshPageData();
+  }, [user, refreshPageData]);
+
+  function updateField(event) {
+    const { name, value } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
     }));
   }
 
-  async function submit(e) {
-    e.preventDefault();
-    setMsg("");
-    setLoading(true);
+  function openRegistrationForm() {
+    setError("");
+    setSuccessMessage("");
+    setSelectedTournamentId("");
+    setShowForm(true);
+  }
+
+  function closeRegistrationForm() {
+    setShowForm(false);
+    setSelectedTournamentId("");
+    setError("");
+  }
+
+  // POST PLAYER OR TEAM REGISTRATION
+  async function submit(event) {
+    event.preventDefault();
+
+    setError("");
+    setSuccessMessage("");
+
+    if (!selectedTournamentId) {
+      setError("Please select a tournament.");
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const payload = isTeamOwner
         ? {
             tournamentId: selectedTournamentId,
-            name: form.name,
-            coOwnerName: form.coOwnerName,
-            coOwnerPhone: form.coOwnerPhone,
+            name: form.name.trim(),
+            coOwnerName: form.coOwnerName.trim(),
+            coOwnerPhone: form.coOwnerPhone.trim(),
           }
         : {
             tournamentId: selectedTournamentId,
-            fullName: form.fullName,
+            fullName: form.fullName.trim(),
             category: form.category,
             role: form.role,
             battingStyle: form.battingStyle,
             bowlingStyle: form.bowlingStyle,
             preferredJerseyNumber: Number(form.preferredJerseyNumber),
           };
-      await api.post(`/registrations/${kind}`, payload);
 
-      setMsg("Application submitted successfully. Pending admin approval.");
+      console.log(
+        `[Registration] Calling POST /registrations/${kind}`,
+        payload,
+      );
 
-      await load();
-    } catch (error) {
-      setMsg(error.response?.data?.message || "Could not submit application");
+      const response = await api.post(`/registrations/${kind}`, payload);
+
+      console.log("[Registration] Submit response:", response.data);
+
+      setSuccessMessage(
+        response.data?.message ||
+          "Application submitted successfully. Pending admin approval.",
+      );
+
+      setShowForm(false);
+      setSelectedTournamentId("");
+
+      // Fetch the updated registrations after submission.
+      await loadRegistrations();
+    } catch (err) {
+      console.error("[Registration] Submit failed:", err.response?.data || err);
+
+      setError(
+        err.response?.data?.message ||
+          "Could not submit your application. Please try again.",
+      );
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
-  const application = isTeamOwner ? data.team : data.player;
+  function renderRegistrationCard(item) {
+    const tournamentId = getTournamentId(item);
 
-  const status = application?.approvalStatus || "Not submitted";
+    return (
+      <div
+        key={item._id}
+        className="rounded-2xl border border-white/10 bg-pitch p-4"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-emerald-100/40">
+              Tournament
+            </p>
 
-  return (
-    <div>
-      <h1 className="text-3xl font-black">
-        {isTeamOwner ? "Team Registration" : "Player Registration"}
-      </h1>
+            <h3 className="mt-1 text-lg font-bold text-white">
+              {getTournamentName(item)}
+            </h3>
 
-      <p className="mt-2 text-sm text-emerald-100/50">
-        Complete your tournament application.
-      </p>
+            <p className="mt-2 text-sm text-emerald-100/60">
+              {isTeamOwner
+                ? `Team: ${item.name || "—"}`
+                : `Player: ${item.fullName || user?.name || "—"}`}
+            </p>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_280px]">
-        {!application && (
-          <form
-            onSubmit={submit}
-            className="rounded-2xl border border-white/10 bg-panel p-5"
-          >
-            <h2 className="text-xl font-bold">
-              {isTeamOwner ? "Team application" : "Player application"}
-            </h2>
-
-            {isTeamOwner ? (
-              <>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium">
-                    Select Tournament
-                  </label>
-
-                  <select
-                    value={selectedTournamentId}
-                    onChange={(e) => setSelectedTournamentId(e.target.value)}
-                    required
-                    disabled={tournamentsLoading || tournaments.length === 0}
-                    className={inputClass}
-                  >
-                    <option value="">
-                      {tournamentsLoading
-                        ? "Loading tournaments..."
-                        : tournaments.length === 0
-                          ? "No tournaments available"
-                          : "Select tournament"}
-                    </option>
-
-                    {tournaments.map((tournament) => (
-                      <option key={tournament._id} value={tournament._id}>
-                        {tournament.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {tournaments.length === 1 && (
-                    <p className="mt-2 text-xs text-lime">
-                      Your tournament has been automatically selected.
-                    </p>
-                  )}
-                </div>
-                <label className="mt-4 block text-sm">
-                  Team name
-                  <input
-                    required
-                    name="name"
-                    value={form.name}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter team name"
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Primary Owner Name
-                  <input
-                    required
-                    name="fullName"
-                    value={form.fullName}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter owner name"
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Owner Email Address
-                  <input
-                    required
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter email address"
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Owner Phone Number
-                  <input
-                    required
-                    type="tel"
-                    name="phone"
-                    value={form.phone}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter phone number"
-                    pattern="[+]?[0-9\s()-]{10,15}"
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Co-owner name
-                  <input
-                    name="coOwnerName"
-                    value={form.coOwnerName}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter co-owner name"
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Co-owner phone
-                  <input
-                    name="coOwnerPhone"
-                    type="tel"
-                    value={form.coOwnerPhone}
-                    onChange={updateField}
-                    className={inputClass}
-                    placeholder="Enter co-owner phone"
-                  />
-                </label>
-              </>
-            ) : (
-              <>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium">
-                    Select Tournament
-                  </label>
-
-                  <select
-                    value={selectedTournamentId}
-                    onChange={(e) => setSelectedTournamentId(e.target.value)}
-                    required
-                    disabled={tournamentsLoading || tournaments.length === 0}
-                    className={inputClass}
-                  >
-                    <option value="">
-                      {tournamentsLoading
-                        ? "Loading tournaments..."
-                        : tournaments.length === 0
-                          ? "No tournaments available"
-                          : "Select tournament"}
-                    </option>
-
-                    {tournaments.map((tournament) => (
-                      <option key={tournament._id} value={tournament._id}>
-                        {tournament.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {tournaments.length === 1 && (
-                    <p className="mt-2 text-xs text-lime">
-                      Your tournament has been automatically selected.
-                    </p>
-                  )}
-                </div>
-                <label className="mt-4 block text-sm">
-                  Player full name
-                  <input
-                    required
-                    name="fullName"
-                    value={form.fullName}
-                    onChange={updateField}
-                    className={inputClass}
-                  />
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Player category
-                  <select
-                    name="category"
-                    value={form.category}
-                    onChange={updateField}
-                    className={inputClass}
-                  >
-                    {categories.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Playing role
-                  <select
-                    name="role"
-                    value={form.role}
-                    onChange={updateField}
-                    className={inputClass}
-                  >
-                    {playingRoles.map((item) => (
-                      <option key={item} value={item}>
-                        {formatLabel(item)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Batting style
-                  <select
-                    name="battingStyle"
-                    value={form.battingStyle}
-                    onChange={updateField}
-                    className={inputClass}
-                  >
-                    {battingStyles.map((item) => (
-                      <option key={item} value={item}>
-                        {formatLabel(item)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Bowling style
-                  <select
-                    name="bowlingStyle"
-                    value={form.bowlingStyle}
-                    onChange={updateField}
-                    className={inputClass}
-                  >
-                    {bowlingStyles.map((item) => (
-                      <option key={item} value={item}>
-                        {formatLabel(item)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="mt-4 block text-sm">
-                  Preferred jersey number
-                  <select
-                    required
-                    name="preferredJerseyNumber"
-                    value={form.preferredJerseyNumber}
-                    onChange={updateField}
-                    className={inputClass}
-                  >
-                    <option value="">Select jersey number</option>
-                    {Array.from({ length: 99 }, (_, i) => i + 1).map(
-                      (number) => (
-                        <option key={number} value={number}>
-                          {number}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </label>
-              </>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || status === "APPROVED"}
-              className="mt-6 rounded-xl bg-lime px-5 py-3 font-bold text-pitch disabled:opacity-50"
-            >
-              {loading ? "Submitting..." : "Submit application"}
-            </button>
-
-            {msg && <p className="mt-4 text-sm text-lime">{msg}</p>}
-          </form>
-        )}
-
-        <div className="rounded-2xl border border-white/10 bg-panel p-5">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-lg font-bold">Application Status</h3>
+            {item.tournament?.season && (
               <p className="mt-1 text-xs text-emerald-100/40">
-                Your tournament registration details
+                Season: {item.tournament.season}
+              </p>
+            )}
+          </div>
+
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(
+              item.approvalStatus,
+            )}`}
+          >
+            {formatStatus(item.approvalStatus)}
+          </span>
+        </div>
+
+        {!isTeamOwner && (
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-emerald-100/40">Category</p>
+              <p className="mt-1 font-medium">{item.category || "—"}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-emerald-100/40">Playing Role</p>
+              <p className="mt-1 font-medium">
+                {formatLabel(item.role || "") || "—"}
               </p>
             </div>
 
+            <div>
+              <p className="text-xs text-emerald-100/40">Batting Style</p>
+              <p className="mt-1 font-medium">
+                {formatLabel(item.battingStyle || "") || "—"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs text-emerald-100/40">Jersey Number</p>
+              <p className="mt-1 font-medium">
+                {item.preferredJerseyNumber || "—"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isTeamOwner && (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-xs text-emerald-100/40">Total Purse</p>
+              <p className="mt-1 text-lg font-bold">
+                {(item.purseTotal ?? 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-xs text-emerald-100/40">Remaining Purse</p>
+              <p className="mt-1 text-lg font-bold text-lime">
+                {(item.purseRemaining ?? 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+
+            <div className="col-span-2 text-xs text-emerald-100/50">
+              Squad: {item.squad?.length || 0} / 13 players
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+          <div>
+            <p className="text-xs text-emerald-100/40">Registration Fee</p>
+
             <span
-              className={`rounded-full border px-3 py-1 text-xs font-bold ${getStatusClass(status)}`}
+              className={`mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(
+                item.registrationFeeStatus,
+              )}`}
             >
-              {formatStatus(status)}
+              {formatStatus(item.registrationFeeStatus)}
             </span>
           </div>
 
-          {!application ? (
-            <div className="mt-6 rounded-xl border border-dashed border-white/10 p-5 text-center">
-              <p className="text-sm font-semibold">
-                No application submitted yet
-              </p>
-              <p className="mt-2 text-xs text-emerald-100/40">
-                Complete the registration form to see your application details
-                here.
+          <p className="text-xs text-emerald-100/40">
+            Registered: {formatDate(item.createdAt)}
+          </p>
+        </div>
+
+        {item.approvalStatus?.toLowerCase() === "pending" && (
+          <div className="mt-4 rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3">
+            <p className="text-sm font-semibold text-yellow-300">
+              Awaiting admin approval
+            </p>
+            <p className="mt-1 text-xs text-emerald-100/50">
+              Your application has been submitted and is waiting for
+              verification.
+            </p>
+          </div>
+        )}
+
+        {tournamentId && (
+          <p className="mt-3 truncate text-[10px] text-emerald-100/20">
+            Registration ID: {item._id}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (initialLoading) {
+    return (
+      <div>
+        <h1 className="text-3xl font-black">
+          {isTeamOwner ? "Team Registration" : "Player Registration"}
+        </h1>
+
+        <div className="mt-8 flex min-h-[350px] items-center justify-center rounded-2xl border border-white/10 bg-panel">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-lime" />
+            <p className="text-sm text-emerald-100/50">
+              Loading your registration details...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black">
+            {isTeamOwner ? "Team Registration" : "Player Registration"}
+          </h1>
+
+          <p className="mt-2 text-sm text-emerald-100/50">
+            Manage your registrations across tournaments.
+          </p>
+        </div>
+
+        {!showForm && (
+          <button
+            type="button"
+            onClick={() => {
+              if (availableTournaments.length === 0) {
+                setError(
+                  "No other tournaments are currently available. Please check again later.",
+                );
+                return;
+              }
+
+              openRegistrationForm();
+            }}
+            className="rounded-xl bg-lime px-5 py-3 font-bold text-pitch transition hover:opacity-90"
+          >
+            + Register for Another Tournament
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-5 flex items-start justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setError("")}
+            className="font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mt-5 rounded-xl border border-lime/20 bg-lime/10 p-4 text-sm text-lime">
+          {successMessage}
+        </div>
+      )}
+
+      {showForm && (
+        <form
+          onSubmit={submit}
+          className="mt-6 rounded-2xl border border-white/10 bg-panel p-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">
+                {isTeamOwner ? "Team Application" : "Player Application"}
+              </h2>
+
+              <p className="mt-1 text-xs text-emerald-100/40">
+                Select a tournament and complete your details.
               </p>
             </div>
-          ) : isTeamOwner ? (
+
+            <button
+              type="button"
+              onClick={closeRegistrationForm}
+              className="rounded-lg border border-white/10 px-3 py-2 text-sm text-emerald-100/60 hover:bg-white/5"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div className="mt-5">
+            <label className="block text-sm font-medium">
+              Select Tournament
+            </label>
+
+            <select
+              value={selectedTournamentId}
+              onChange={(event) => setSelectedTournamentId(event.target.value)}
+              required
+              disabled={tournamentsLoading || availableTournaments.length === 0}
+              className={inputClass}
+            >
+              <option value="">
+                {tournamentsLoading
+                  ? "Loading tournaments..."
+                  : availableTournaments.length === 0
+                    ? "No new tournaments available"
+                    : "Select tournament"}
+              </option>
+
+              {availableTournaments.map((tournament) => (
+                <option key={tournament._id} value={tournament._id}>
+                  {tournament.name}
+                  {tournament.season ? ` - ${tournament.season}` : ""}
+                </option>
+              ))}
+            </select>
+
+            {!tournamentsLoading && availableTournaments.length === 0 && (
+              <p className="mt-2 text-xs text-yellow-300">
+                You have already registered for all currently available
+                tournaments.
+              </p>
+            )}
+          </div>
+
+          {isTeamOwner ? (
             <>
-              {/* Team identity */}
-              <div className="mt-5 rounded-xl border border-white/10 bg-pitch p-4">
-                <p className="text-xs uppercase tracking-wider text-emerald-100/40">
-                  Registered Team
-                </p>
+              <label className="mt-4 block text-sm">
+                Team Name
+                <input
+                  required
+                  name="name"
+                  value={form.name}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter team name"
+                />
+              </label>
 
-                <h2 className="mt-2 text-2xl font-black text-lime">
-                  {team.name}
-                </h2>
+              <label className="mt-4 block text-sm">
+                Primary Owner Name
+                <input
+                  required
+                  name="fullName"
+                  value={form.fullName}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter owner name"
+                />
+              </label>
 
-                <p className="mt-2 text-xs text-emerald-100/40">
-                  Registered on {formatDate(team.createdAt)}
-                </p>
-              </div>
+              <label className="mt-4 block text-sm">
+                Owner Email Address
+                <input
+                  required
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter email address"
+                />
+              </label>
 
-              {/* Owner details */}
-              <div className="mt-5">
-                <h4 className="text-sm font-bold text-white">
-                  Ownership Details
-                </h4>
+              <label className="mt-4 block text-sm">
+                Owner Phone Number
+                <input
+                  required
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter phone number"
+                  pattern="[+]?[0-9\s()-]{10,15}"
+                />
+              </label>
 
-                <div className="mt-3 space-y-3">
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-emerald-100/50">Primary Owner</span>
-                    <span className="text-right font-medium">
-                      {user?.name || "—"}
-                    </span>
-                  </div>
+              <label className="mt-4 block text-sm">
+                Co-owner Name
+                <input
+                  name="coOwnerName"
+                  value={form.coOwnerName}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter co-owner name"
+                />
+              </label>
 
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-emerald-100/50">Co-Owner</span>
-                    <span className="text-right font-medium">
-                      {team.coOwnerName || "Not added"}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-emerald-100/50">Co-Owner Phone</span>
-                    <span className="text-right font-medium">
-                      {team.coOwnerPhone || "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Approval and payment */}
-              <div className="mt-5 border-t border-white/10 pt-5">
-                <h4 className="text-sm font-bold">Verification</h4>
-
-                <div className="mt-3 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-emerald-100/50">
-                      Application
-                    </span>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(team.approvalStatus)}`}
-                    >
-                      {formatStatus(team.approvalStatus)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-emerald-100/50">
-                      Registration Fee
-                    </span>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(team.registrationFeeStatus)}`}
-                    >
-                      {formatStatus(team.registrationFeeStatus)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Purse details */}
-              <div className="mt-5 border-t border-white/10 pt-5">
-                <h4 className="text-sm font-bold">Auction Purse</h4>
-
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-pitch p-3">
-                    <p className="text-xs text-emerald-100/40">Total Purse</p>
-                    <p className="mt-2 text-xl font-black">
-                      {(team.purseTotal ?? 0).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-xs text-emerald-100/30">Points</p>
-                  </div>
-
-                  <div className="rounded-xl bg-pitch p-3">
-                    <p className="text-xs text-emerald-100/40">Remaining</p>
-                    <p className="mt-2 text-xl font-black text-lime">
-                      {(team.purseRemaining ?? 0).toLocaleString("en-IN")}
-                    </p>
-                    <p className="text-xs text-emerald-100/30">Points</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Squad details */}
-              <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
-                <div>
-                  <h4 className="text-sm font-bold">Team Squad</h4>
-                  <p className="mt-1 text-xs text-emerald-100/40">
-                    Players acquired in auction
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-2xl font-black text-lime">
-                    {team.squad?.length || 0}
-                  </p>
-                  <p className="text-xs text-emerald-100/40">/ 13 Players</p>
-                </div>
-              </div>
-
-              {team.approvalStatus?.toLowerCase() === "pending" && (
-                <div className="mt-5 rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3">
-                  <p className="text-sm font-semibold text-yellow-300">
-                    Awaiting admin approval
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-100/50">
-                    Your team application is submitted. The administrator will
-                    verify your details and registration fee.
-                  </p>
-                </div>
-              )}
+              <label className="mt-4 block text-sm">
+                Co-owner Phone
+                <input
+                  name="coOwnerPhone"
+                  type="tel"
+                  value={form.coOwnerPhone}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter co-owner phone"
+                />
+              </label>
             </>
           ) : (
             <>
-              {/* Player summary */}
-              <div className="mt-5 rounded-xl border border-white/10 bg-pitch p-4">
-                <p className="text-xs uppercase tracking-wider text-emerald-100/40">
-                  Registered Player
-                </p>
-                <h2 className="mt-2 text-xl font-black text-lime">
-                  {player.fullName}
-                </h2>
-                <p className="mt-2 text-xs text-emerald-100/40">
-                  Registered on {formatDate(player.createdAt)}
-                </p>
-              </div>
+              <label className="mt-4 block text-sm">
+                Player Full Name
+                <input
+                  required
+                  name="fullName"
+                  value={form.fullName}
+                  onChange={updateField}
+                  className={inputClass}
+                  placeholder="Enter player name"
+                />
+              </label>
 
-              <div className="mt-5 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-emerald-100/50">Category</span>
-                  <span>{player.category}</span>
-                </div>
+              <label className="mt-4 block text-sm">
+                Player Category
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={updateField}
+                  className={inputClass}
+                >
+                  {categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <div className="flex justify-between">
-                  <span className="text-emerald-100/50">Playing Role</span>
-                  <span>{formatLabel(player.role || "")}</span>
-                </div>
+              <label className="mt-4 block text-sm">
+                Playing Role
+                <select
+                  name="role"
+                  value={form.role}
+                  onChange={updateField}
+                  className={inputClass}
+                >
+                  {playingRoles.map((item) => (
+                    <option key={item} value={item}>
+                      {formatLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <div className="flex justify-between">
-                  <span className="text-emerald-100/50">Batting Style</span>
-                  <span>{formatLabel(player.battingStyle || "")}</span>
-                </div>
+              <label className="mt-4 block text-sm">
+                Batting Style
+                <select
+                  name="battingStyle"
+                  value={form.battingStyle}
+                  onChange={updateField}
+                  className={inputClass}
+                >
+                  {battingStyles.map((item) => (
+                    <option key={item} value={item}>
+                      {formatLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <div className="flex justify-between">
-                  <span className="text-emerald-100/50">Bowling Style</span>
-                  <span>{formatLabel(player.bowlingStyle || "")}</span>
-                </div>
+              <label className="mt-4 block text-sm">
+                Bowling Style
+                <select
+                  name="bowlingStyle"
+                  value={form.bowlingStyle}
+                  onChange={updateField}
+                  className={inputClass}
+                >
+                  {bowlingStyles.map((item) => (
+                    <option key={item} value={item}>
+                      {formatLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <div className="flex justify-between">
-                  <span className="text-emerald-100/50">Jersey Number</span>
-                  <span>{player.preferredJerseyNumber || "—"}</span>
-                </div>
-              </div>
+              <label className="mt-4 block text-sm">
+                Preferred Jersey Number
+                <select
+                  required
+                  name="preferredJerseyNumber"
+                  value={form.preferredJerseyNumber}
+                  onChange={updateField}
+                  className={inputClass}
+                >
+                  <option value="">Select jersey number</option>
 
-              <div className="mt-5 border-t border-white/10 pt-5 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-emerald-100/50">
-                    Application
-                  </span>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-xs ${getStatusClass(player.approvalStatus)}`}
-                  >
-                    {formatStatus(player.approvalStatus)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-emerald-100/50">
-                    Registration Fee
-                  </span>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-xs ${getStatusClass(player.registrationFeeStatus)}`}
-                  >
-                    {formatStatus(player.registrationFeeStatus)}
-                  </span>
-                </div>
-              </div>
+                  {Array.from({ length: 99 }, (_, index) => index + 1).map(
+                    (number) => (
+                      <option key={number} value={number}>
+                        {number}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
             </>
           )}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={
+                submitting || tournamentsLoading || !selectedTournamentId
+              }
+              className="rounded-xl bg-lime px-5 py-3 font-bold text-pitch transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "Submit Application"}
+            </button>
+
+            <button
+              type="button"
+              onClick={closeRegistrationForm}
+              disabled={submitting}
+              className="rounded-xl border border-white/10 px-5 py-3 font-semibold text-white hover:bg-white/5"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-panel p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">My Tournament Registrations</h2>
+
+            <p className="mt-1 text-xs text-emerald-100/40">
+              All your submitted tournament applications
+            </p>
+          </div>
+
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold">
+            {applications.length} Registration
+            {applications.length === 1 ? "" : "s"}
+          </span>
         </div>
+
+        {applications.length === 0 ? (
+          <div className="mt-5 rounded-xl border border-dashed border-white/10 p-8 text-center">
+            <h3 className="font-bold">No registrations found</h3>
+
+            <p className="mt-2 text-sm text-emerald-100/40">
+              You have not registered for any tournament yet.
+            </p>
+
+            {!showForm && (
+              <button
+                type="button"
+                onClick={openRegistrationForm}
+                disabled={availableTournaments.length === 0}
+                className="mt-5 rounded-xl bg-lime px-5 py-3 font-bold text-pitch disabled:opacity-50"
+              >
+                Register Now
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {applications.map(renderRegistrationCard)}
+          </div>
+        )}
       </div>
     </div>
   );

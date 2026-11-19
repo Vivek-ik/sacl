@@ -44,6 +44,7 @@ import OrganizationRegister from "./pages/OrganizationRegister";
 import PublicTournaments from "./pages/public/Tournaments";
 import TournamentDetails from "./pages/public/TournamentDetails";
 import Landing from "./pages/Landing";
+import Profile from "./pages/Profile";
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
@@ -82,7 +83,7 @@ function HomeRoute() {
   // const { user } = useAuth();
 
   // if (!user) {
-    return <Landing />;
+  return <Landing />;
   // }
 
   return (
@@ -255,6 +256,14 @@ function AppRoutes() {
           <Protected roles={["super_admin"]}>
             <CreateOrganization />
           </Protected>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <Layout>
+            <Profile />
+          </Layout>
         }
       />
       <Route path="/organization/register" element={<OrganizationRegister />} />
