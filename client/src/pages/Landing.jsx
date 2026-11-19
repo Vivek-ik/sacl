@@ -296,7 +296,7 @@ export default function Landing() {
 
             <div>
               <p className="text-xl font-black tracking-tight">
-                SACL <span className="text-amber-400">2.0</span>
+                We<span className="text-amber-400">Khiladi</span>
               </p>
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
                 Digital Auction Arena
@@ -612,7 +612,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <p className="text-xl font-black">
-                    SACL <span className="text-amber-400">2.0</span>
+                    We<span className="text-amber-400">Khiladi</span>
                   </p>
                   <p className="text-[10px] uppercase tracking-widest text-slate-400">
                     Digital Auction Arena
@@ -734,6 +734,41 @@ export default function Landing() {
               >
                 Powered by WeKhiladi
               </a>
+            </div>
+          </div>
+          <div className="wrap">
+            <h3 className="font-bold text-white">We Khiladi</h3>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Tournament registration and management platform.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm">
+              <Link
+                to="/terms-and-conditions"
+                className="text-slate-400 transition hover:text-white"
+              >
+                Terms & Conditions
+              </Link>
+
+              <Link
+                to="/privacy"
+                className="text-slate-400 transition hover:text-white"
+              >
+                Privacy Policy
+              </Link>
+
+              <Link
+                to="/refund-policy"
+                className="text-slate-400 transition hover:text-white"
+              >
+                Refund & Cancellation Policy
+              </Link>
+
+            </div>
+
+            <div className="mt-8 border-t border-white/10 pt-5 text-xs text-slate-500">
+              © {new Date().getFullYear()} We khiladi. All rights reserved.
             </div>
           </div>
         </footer>

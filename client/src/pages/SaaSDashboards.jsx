@@ -2178,27 +2178,37 @@ export function PlayersManagement() {
                   <td className="px-5 py-4">
                     <StatusBadge status={player.approvalStatus} />
                   </td> */}
+
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-[280px] items-center gap-2">
+                      {/* Edit */}
                       <button
                         type="button"
                         onClick={() => setSelectedPlayer(player)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#f4c34e]/30 bg-[#f4c34e]/10 px-3 py-2 text-xs font-semibold text-[#f4c34e] transition hover:bg-[#f4c34e]/20"
+                        title="Edit player"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-400"
                       >
                         <Pencil size={14} />
                         Edit
                       </button>
 
-                      <ReviewButtons
-                        item={player}
-                        type="player"
-                        onReviewed={fetchPlayers}
-                      />
-                      <DeleteApplicationButton
-                        item={player}
-                        entity="player"
-                        onDeleted={fetchPlayers}
-                      />
+                      {/* Review */}
+                      <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                        <ReviewButtons
+                          item={player}
+                          type="player"
+                          onReviewed={fetchPlayers}
+                        />
+                      </div>
+
+                      {/* Delete */}
+                      <div className="ml-auto border-l border-white/10 pl-2">
+                        <DeleteApplicationButton
+                          item={player}
+                          entity="player"
+                          onDeleted={fetchPlayers}
+                        />
+                      </div>
                     </div>
                   </td>
                 </tr>

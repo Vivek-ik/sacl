@@ -9,7 +9,7 @@ export default function Terms() {
         title="Terms & Conditions"
         desc="By using this website, you agree to these terms. Review the applicable product quotation or tournament listing before placing an order or registering."
       />
-      <section className="section">
+      <section className="section p-20">
         <div className="wrap max-w-4xl space-y-8">
           {[
             [

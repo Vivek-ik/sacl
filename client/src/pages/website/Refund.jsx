@@ -9,7 +9,7 @@ export default function Refund() {
         title="Refund Policy"
         desc="This policy describes how refund requests are handled for purchases and tournament registrations. Specific quotations or event rules may provide additional terms."
       />
-      <section className="section">
+      <section className="section p-20">
         <div className="wrap max-w-4xl space-y-8">
           {[
             [

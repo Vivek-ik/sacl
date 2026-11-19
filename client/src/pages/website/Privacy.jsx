@@ -35,7 +35,7 @@ function Policy({ title, intro, sections }) {
   return (
     <>
       <Intro tag="Legal information" title={title} desc={intro} />
-      <section className="section">
+      <section className="section p-20">
         <div className="wrap max-w-4xl space-y-8">
           {sections.map(([h, p]) => (
             <article key={h}>

@@ -125,7 +125,7 @@ export function Footer() {
 }
 export function Intro({ tag, title, desc }) {
   return (
-    <section className="bg-cream py-16 md:py-20">
+    <section className="bg-cream py-16 md:p-20">
       <div className="wrap">
         <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-leaf">
           — {tag}
