@@ -20,11 +20,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d192c] text-white shadow-lg backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
         {/* Logo */}
-        <Link
-          to="/home"
-          onClick={closeMenu}
-          className="flex items-center gap-3"
-        >
+        <Link to="/" onClick={closeMenu} className="flex items-center gap-3">
           <span className="rounded-xl bg-[#f5b942] p-3 text-[#102a24]">
             <Trophy size={25} />
           </span>
