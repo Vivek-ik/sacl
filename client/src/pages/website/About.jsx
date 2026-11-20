@@ -186,9 +186,7 @@ export default function About() {
               <Target size={30} />
             </div>
 
-            <h3 className="mt-6 text-2xl font-black">
-              Our Mission
-            </h3>
+            <h3 className="mt-6 text-2xl font-black">Our Mission</h3>
 
             <p className="mt-4 leading-8">
               To make sports participation and tournament administration simpler
@@ -202,9 +200,7 @@ export default function About() {
               <ShieldCheck size={30} />
             </div>
 
-            <h3 className="mt-6 text-2xl font-black">
-              Our Commitment
-            </h3>
+            <h3 className="mt-6 text-2xl font-black">Our Commitment</h3>
 
             <p className="mt-4 leading-8">
               We aim to provide clear registration information, transparent fee
@@ -504,6 +500,14 @@ export default function About() {
                 <div>
                   <p className="text-xs text-slate-500">Business Address</p>
                   <p className="mt-1 leading-6 text-slate-300">{B.address}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-500">Contact</p>
+                  <p className="mt-1 leading-6 text-slate-300">
+                    Phone: 9109101114 <br />
+                    Email: arohanmp@gmail.com
+                  </p>
                 </div>
               </div>
             </div>

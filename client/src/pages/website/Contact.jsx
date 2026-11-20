@@ -128,9 +128,7 @@ export function ContactForm() {
 
               <span>
                 <small className="block text-sm text-slate-500">Platform</small>
-                <strong className="mt-1 block text-lg">
-                  WeKhiladi
-                </strong>
+                <strong className="mt-1 block text-lg">WeKhiladi</strong>
               </span>
             </div>
 
@@ -148,9 +146,7 @@ export function ContactForm() {
                 <small className="block text-sm text-slate-500">
                   Official Website
                 </small>
-                <strong className="mt-1 block text-lg">
-                  wekhiladi.in
-                </strong>
+                <strong className="mt-1 block text-lg">wekhiladi.in</strong>
               </span>
             </a>
           </div>
@@ -530,6 +526,13 @@ export default function Contact() {
                 <div>
                   <p className="text-xs text-slate-500">Business Address</p>
                   <p className="mt-1 leading-6 text-slate-300">{B.address}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Contact</p>
+                  <p className="mt-1 leading-6 text-slate-300">
+                    Phone: 9109101114 <br />
+                    Email: arohanmp@gmail.com
+                  </p>
                 </div>
               </div>
             </div>

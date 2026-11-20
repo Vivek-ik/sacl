@@ -484,7 +484,6 @@ export default function Home() {
               >
                 Refund & Cancellation Policy
               </Link>
-
             </div>
           </div>
 

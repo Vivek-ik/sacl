@@ -715,6 +715,14 @@ export default function Landing() {
                     126 B, Vaishali Nagar, Vidisha, Madhya Pradesh 464001, India
                   </p>
                 </div>
+
+                <div>
+                  <p className="text-xs text-slate-500">Contact</p>
+                  <p className="mt-1 leading-6 text-slate-300">
+                    Phone: 9109101114 <br />
+                    Email: arohanmp@gmail.com
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -764,7 +772,6 @@ export default function Landing() {
               >
                 Refund & Cancellation Policy
               </Link>
-
             </div>
 
             <div className="mt-8 border-t border-white/10 pt-5 text-xs text-slate-500">
