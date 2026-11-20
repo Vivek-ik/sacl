@@ -59,6 +59,8 @@ const teamOwnerLinks = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/team", label: "My Team", icon: ShieldCheck },
+  { to: "/auction", label: "Auction", icon: Gavel },
+  { to: "/live", label: "Live Scoreboard", icon: Activity },
   { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
