@@ -137,3 +137,40 @@ export async function getAuctionSnapshot() {
     { path: "bids.team", select: "name" },
   ]);
 }
+
+export async function advanceExpiredAuction() {
+  const auction = await getOrCreateAuction();
+
+  // Nothing to advance.
+  if (
+    auction.status !== "RUNNING" ||
+    !auction.currentPlayer ||
+    !auction.endsAt
+  ) {
+    return getAuctionSnapshot();
+  }
+
+  // Timer has not expired yet.
+  if (auction.endsAt.getTime() > Date.now()) {
+    return getAuctionSnapshot();
+  }
+
+  // If there is a highest bidder, sell the player.
+  // Otherwise, mark the player unsold.
+  const sold = Boolean(auction.highestBidTeam);
+
+  await closeCurrentPlayer(sold, auction.updatedBy);
+
+  // Find the next approved and available player.
+  const nextPlayer = await Player.findOne({
+    approvalStatus: "approved",
+    auctionStatus: "AVAILABLE",
+  }).sort({ createdAt: 1 });
+
+  if (!nextPlayer) {
+    return getAuctionSnapshot();
+  }
+
+  // Automatically start the next player with a fresh 45-second timer.
+  return startPlayer(nextPlayer._id, auction.updatedBy);
+}

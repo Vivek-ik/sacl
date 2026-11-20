@@ -37,6 +37,7 @@ import { configureScoringSocket } from "./socket/scoringSocket.js";
 import adminManagementRoutes from "./routes/adminManagement.routes.js";
 
 import playerPaymentRoutes from "./routes/playerPayment.routes.js";
+import teamPaymentRoutes from "./routes/teamPaymentRoutes.js";
 import adminPaymentRoutes from "./routes/adminPayment.routes.js";
 
 import { notFound, errorHandler } from "./middleware/error.js";
@@ -106,6 +107,7 @@ app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/admin", adminManagementRoutes);
 
 app.use("/api/player-payment", playerPaymentRoutes);
+app.use("/api/team-payment", teamPaymentRoutes);
 app.use("/api/admin/payments", adminPaymentRoutes);
 
 app.use("/api/users", profileRoutes);

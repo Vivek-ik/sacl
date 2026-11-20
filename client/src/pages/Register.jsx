@@ -198,7 +198,7 @@ export default function Register() {
         paymentData.append("screenshot", paymentScreenshot);
 
         const paymentResponse = await api.post(
-          "/player-payment/submit-proof",
+          "/team-payment/submit-proof",
           paymentData,
         );
 
@@ -883,7 +883,8 @@ export default function Register() {
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f4c34e]/15 text-xs font-bold text-[#f4c34e]">
                           4
                         </span>
-                        Upload the payment details screenshot with UTR and enter your UTR below.
+                        Upload the payment details screenshot with UTR and enter
+                        your UTR below.
                       </li>
                     </ol>
 

@@ -5,6 +5,7 @@ import {
   startPlayer,
   closeCurrentPlayer,
   getAuctionSnapshot,
+  advanceExpiredAuction,
 } from "../services/auctionService.js";
 
 export function initializeAuctionSocket(httpServer) {
@@ -14,6 +15,38 @@ export function initializeAuctionSocket(httpServer) {
       methods: ["GET", "POST"],
     },
   });
+
+  let advancingAuction = false;
+
+  const auctionTimer = setInterval(async () => {
+    if (advancingAuction) return;
+
+    try {
+      advancingAuction = true;
+
+      const before = await getAuctionSnapshot();
+
+      if (
+        before?.status === "RUNNING" &&
+        before?.endsAt &&
+        new Date(before.endsAt).getTime() <= Date.now()
+      ) {
+        const updatedState = await advanceExpiredAuction();
+
+        io.to("auction-room").emit("auction:state", updatedState);
+        io.to("auction-room").emit("auction:notice", {
+          message: updatedState?.currentPlayer
+            ? "Time expired. Moving to the next player."
+            : "Auction lot closed. No more available players.",
+        });
+      }
+    } catch (error) {
+      console.error("Auction timer error:", error);
+    } finally {
+      advancingAuction = false;
+    }
+  }, 500);
+  
   io.use(protectSocket);
   io.on("connection", async (socket) => {
     socket.join("auction-room");
