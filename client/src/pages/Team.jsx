@@ -82,7 +82,7 @@ export default function Team() {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/team/my-applications");
+      const response = await api.get("/team/my-team");
 
       setApplications(response.data.applications || []);
     } catch (err) {

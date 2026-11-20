@@ -109,12 +109,16 @@ export default function Auction() {
   }, [canOperate]);
 
   // LOAD TEAM OWNER'S OWN APPROVED TEAMS
+  // LOAD ONLY THE LOGGED-IN TEAM OWNER'S APPROVED TEAMS
   useEffect(() => {
     if (!isTeamOwner) return;
 
-    api
-      .get("/registrations/me")
-      .then((response) => {
+    let mounted = true;
+
+    async function loadMyTeams() {
+      try {
+        const response = await api.get("/registrations/me");
+
         const data = response.data;
 
         const registeredTeams = Array.isArray(data.teams)
@@ -123,23 +127,38 @@ export default function Auction() {
             ? [data.team]
             : [];
 
-        const approvedTeams = registeredTeams.filter(
-          (team) => team.approvalStatus === "approved",
+        const myApprovedTeams = registeredTeams.filter(
+          (team) =>
+            team.approvalStatus === "approved" &&
+            team.primaryOwner === user?.id,
         );
 
-        setTeams(approvedTeams);
+        if (!mounted) return;
 
-        if (approvedTeams.length === 1) {
-          setTeamId(approvedTeams[0]._id);
+        setTeams(myApprovedTeams);
+
+        // Automatically select the owner's team if there is only one.
+        if (myApprovedTeams.length === 1) {
+          setTeamId(myApprovedTeams[0]._id);
         }
-      })
-      .catch((error) => {
-        console.error("Team loading error:", error);
-        setNotice(
-          error.response?.data?.message || "Could not load your approved team.",
-        );
-      });
-  }, [isTeamOwner]);
+      } catch (error) {
+        console.error("My team loading error:", error);
+
+        if (mounted) {
+          setNotice(
+            error.response?.data?.message ||
+              "Could not load your approved team.",
+          );
+        }
+      }
+    }
+
+    loadMyTeams();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isTeamOwner, user?.id]);
 
   // SYNCHRONIZED COUNTDOWN FROM SERVER endsAt
   useEffect(() => {
@@ -342,77 +361,96 @@ export default function Auction() {
 
         {/* RIGHT PANEL */}
         <aside className="space-y-4">
-          {/* TEAM OWNER BIDDING */}
+          {/* TEAM OWNER BIDDING PANEL */}
           {isTeamOwner && (
-            <div className="rounded-2xl border border-white/10 bg-panel p-5">
-              <h3 className="text-lg font-bold">Place your bid</h3>
+            <div className="rounded-2xl border border-lime/20 bg-panel p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black">Your Team</h3>
+                <span className="rounded-full bg-lime/10 px-3 py-1 text-xs font-bold text-lime">
+                  BIDDER
+                </span>
+              </div>
 
-              <p className="mt-1 text-xs text-emerald-100/40">
-                Only approved team owners can participate.
-              </p>
+              {selectedTeam ? (
+                <>
+                  <div className="mt-4 rounded-xl bg-pitch p-4">
+                    <p className="text-xs text-emerald-100/50">Bidding as</p>
+                    <h4 className="mt-1 text-xl font-black text-white">
+                      {selectedTeam.name}
+                    </h4>
 
-              <label className="mt-5 block text-xs text-emerald-100/50">
-                Your approved team
-                <select
-                  value={teamId}
-                  onChange={(event) => setTeamId(event.target.value)}
-                  disabled={teams.length === 0}
-                  className="mt-2 w-full rounded-xl bg-pitch px-3 py-3 text-sm text-white disabled:opacity-50"
-                >
-                  <option value="">
-                    {teams.length ? "Select team" : "No approved team found"}
-                  </option>
+                    <p className="mt-4 text-xs text-emerald-100/50">
+                      Remaining purse
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-lime">
+                      {formatPoints(selectedTeam.purseRemaining)} pts
+                    </p>
+                  </div>
 
-                  {teams.map((team) => (
-                    <option key={team._id} value={team._id}>
-                      {team.name} · {formatPoints(team.purseRemaining)} pts
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {state?.status === "RUNNING" && currentPlayer ? (
+                    <>
+                      <div className="mt-5">
+                        <label className="text-xs font-semibold text-emerald-100/60">
+                          Enter your bid (points)
+                        </label>
 
-              {selectedTeam && (
-                <div className="mt-3 rounded-xl bg-pitch p-3">
-                  <p className="text-xs text-emerald-100/40">Remaining purse</p>
+                        <input
+                          type="number"
+                          min={Number(state?.currentBid || 0) + 1}
+                          step="1"
+                          value={amount}
+                          onChange={(event) => setAmount(event.target.value)}
+                          placeholder={`Minimum ${Number(state?.currentBid || 0) + 1}`}
+                          disabled={bidding || seconds <= 0}
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-pitch px-4 py-4 text-lg font-bold text-white outline-none focus:border-lime disabled:opacity-50"
+                        />
 
-                  <p className="mt-1 text-xl font-black text-lime">
-                    {formatPoints(selectedTeam.purseRemaining)} pts
+                        <p className="mt-2 text-xs text-emerald-100/40">
+                          Current highest bid: {formatPoints(state?.currentBid)}{" "}
+                          pts
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={
+                          bidding ||
+                          !amount ||
+                          !Number.isInteger(Number(amount)) ||
+                          Number(amount) <= Number(state?.currentBid || 0) ||
+                          Number(amount) >
+                            Number(selectedTeam.purseRemaining || 0) ||
+                          seconds <= 0 ||
+                          state?.status !== "RUNNING"
+                        }
+                        onClick={placeBid}
+                        className="mt-4 w-full rounded-xl bg-lime py-4 text-base font-black text-pitch transition hover:bg-lime/80 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {bidding ? "Placing Bid..." : "PLACE BID"}
+                      </button>
+
+                      <p className="mt-3 text-center text-xs text-emerald-100/40">
+                        Your bid must exceed the current highest bid.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="mt-5 rounded-xl border border-white/10 bg-pitch p-4 text-center">
+                      <p className="font-semibold text-amber-300">
+                        Waiting for the next player
+                      </p>
+                      <p className="mt-1 text-xs text-emerald-100/40">
+                        Bidding will become available when the auction conductor
+                        starts a player.
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="mt-4 rounded-xl bg-pitch p-4">
+                  <p className="text-sm text-amber-300">
+                    No approved team found for your account.
                   </p>
                 </div>
-              )}
-
-              <label className="mt-4 block text-xs text-emerald-100/50">
-                Your bid
-                <input
-                  type="number"
-                  min={Number(state?.currentBid || 0) + 1}
-                  step="1"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  placeholder="Enter points"
-                  className="mt-2 w-full rounded-xl bg-pitch px-3 py-3 text-sm text-white"
-                />
-              </label>
-
-              <button
-                type="button"
-                disabled={
-                  bidding ||
-                  !teamId ||
-                  !amount ||
-                  state?.status !== "RUNNING" ||
-                  seconds <= 0
-                }
-                onClick={placeBid}
-                className="mt-4 w-full rounded-xl bg-lime py-3 font-black text-pitch disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {bidding ? "Placing bid..." : "Place Bid"}
-              </button>
-
-              {state?.status !== "RUNNING" && (
-                <p className="mt-3 text-center text-xs text-emerald-100/40">
-                  Bidding will be available when the next player starts.
-                </p>
               )}
             </div>
           )}
@@ -446,7 +484,8 @@ export default function Auction() {
                 onClick={() => emit("auction:start", { playerId })}
                 className="mt-4 w-full rounded-xl bg-lime py-3 font-bold text-pitch disabled:opacity-40"
               >
-                Start Player (45 sec)
+                {/* Start Player (45 sec) */}
+                Start Player
               </button>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
