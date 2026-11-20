@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Gavel,
   Radio,
+  LucideAxis3D,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -26,7 +27,9 @@ const superAdminLinks = [
   { to: "/super-admin/subscriptions", label: "Subscriptions", icon: Wallet },
   { to: "/super-admin/payments", label: "Payments", icon: CreditCard },
   { to: "/super-admin/plans", label: "Plans & Pricing", icon: Receipt },
+  { to: "/contact-leads", label: "Contact Leads", icon: LucideAxis3D },
   { to: "/profile", label: "My Profile", icon: UserRound },
+  { to: "/contact-leads", label: "Contact Leads", icon: LucideAxis3D },
 ];
 
 const organizerLinks = [

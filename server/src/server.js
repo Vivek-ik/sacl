@@ -28,6 +28,8 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 
 import profileRoutes from "./routes/profileRoutes.js";
 
+import contactRoutes from "./routes/contact.routes.js";
+
 // Socket.IO
 import { initializeAuctionSocket } from "./socket/auctionSocket.js";
 import { configureScoringSocket } from "./socket/scoringSocket.js";
@@ -107,6 +109,8 @@ app.use("/api/player-payment", playerPaymentRoutes);
 app.use("/api/admin/payments", adminPaymentRoutes);
 
 app.use("/api/users", profileRoutes);
+
+app.use("/api/contact", contactRoutes);
 
 // Error handling
 app.use(notFound);

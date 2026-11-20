@@ -45,6 +45,7 @@ import PublicTournaments from "./pages/public/Tournaments";
 import TournamentDetails from "./pages/public/TournamentDetails";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
+import ContactLeads from "./pages/ContactLeads";
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
@@ -170,6 +171,14 @@ function AppRoutes() {
         element={
           <Protected roles={["org_admin"]}>
             <PlayersManagement />
+          </Protected>
+        }
+      />
+      <Route
+        path="/contact-leads"
+        element={
+          <Protected roles={["org_admin"]}>
+            <ContactLeads />
           </Protected>
         }
       />

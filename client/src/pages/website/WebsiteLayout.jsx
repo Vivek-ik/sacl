@@ -148,7 +148,7 @@ export function CTA() {
           <p className="text-xs uppercase tracking-widest text-white/60">
             Need assistance?
           </p>
-          <h2 className="mt-2 text-3xl font-black">Talk to the Arohan team.</h2>
+          <h2 className="mt-2 text-3xl font-black">Talk to the We Khiladi team.</h2>
         </div>
         <Link
           className="rounded-full px-6 py-3 font-bold text-forest"
