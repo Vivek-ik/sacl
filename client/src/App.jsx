@@ -6,7 +6,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Registration from "./pages/Registration";
-import Auction from "./pages/Auction";
 import Admin from "./pages/Admin";
 import Team from "./pages/Team";
 import ScorerManagement from "./pages/ScorerManagement";
@@ -18,6 +17,8 @@ import LiveMatch from "./pages/LiveMatch";
 
 import StaffManagement from "./pages/organizer/StaffManagement";
 import CreateOrganization from "./pages/super-admin/CreateOrganization";
+
+import AuctionManagement from "./pages/AuctionManagement";
 
 import Home from "./pages/website/Home";
 import About from "./pages/website/About";
@@ -46,18 +47,23 @@ import TournamentDetails from "./pages/public/TournamentDetails";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import ContactLeads from "./pages/ContactLeads";
+import LiveAuction from "./pages/LiveAuction";
+import Auction from "./pages/Auction";
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
 
-  // if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/overview" replace />;
   }
 
   return <Layout>{children}</Layout>;
 }
+
 function HomeDashboard() {
   const { user } = useAuth();
 
@@ -202,10 +208,22 @@ function AppRoutes() {
       <Route
         path="/auction"
         element={
-          <Protected>
-            <Auction />
+          <Protected
+            roles={[
+              "super_admin",
+              "org_admin",
+              "admin",
+              "auctioneer",
+              "team_owner",
+            ]}
+          >
+            <AuctionManagement />
           </Protected>
         }
+      />
+      <Route
+        path="/dashboard/auctions/:auctionId/tournament/:tournamentId"
+        element={<Auction />}
       />
       <Route
         path="/team"

@@ -40,6 +40,8 @@ import playerPaymentRoutes from "./routes/playerPayment.routes.js";
 import teamPaymentRoutes from "./routes/teamPaymentRoutes.js";
 import adminPaymentRoutes from "./routes/adminPayment.routes.js";
 
+import auctionManagementRoutes from "./routes/auctionManagementRoutes.js";
+
 import { notFound, errorHandler } from "./middleware/error.js";
 
 // use this where ever necessary
@@ -113,6 +115,8 @@ app.use("/api/admin/payments", adminPaymentRoutes);
 app.use("/api/users", profileRoutes);
 
 app.use("/api/contact", contactRoutes);
+
+app.use("/api/auction-management", auctionManagementRoutes);
 
 // Error handling
 app.use(notFound);

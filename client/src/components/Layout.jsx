@@ -75,6 +75,13 @@ const playerLinks = [
   { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
+const auctioneerLinks = [
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
+  { to: "/auction", label: "My Assigned Auctions", icon: Gavel },
+  { to: "/live", label: "Live Scoreboard", icon: Activity },
+  { to: "/profile", label: "My Profile", icon: UserRound },
+];
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -86,11 +93,13 @@ export default function Layout({ children }) {
         ? organizerLinks
         : user?.role === "admin"
           ? legacyAdminLinks
-          : user?.role === "team_owner"
-            ? teamOwnerLinks
-            : user?.role === "scorer"
-              ? scorerLinks
-              : playerLinks;
+          : user?.role === "auctioneer"
+            ? auctioneerLinks
+            : user?.role === "team_owner"
+              ? teamOwnerLinks
+              : user?.role === "scorer"
+                ? scorerLinks
+                : playerLinks;
 
   const roleLabel = user?.role?.replaceAll("_", " ");
 

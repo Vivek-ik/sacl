@@ -31,6 +31,12 @@ const tournamentSchema = new mongoose.Schema(
       enum: ["T10", "T20", "ODI", "TEST", "CUSTOM"],
       default: "T20",
     },
+    auctioneers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     startDate: {
       type: Date,
       required: true,
