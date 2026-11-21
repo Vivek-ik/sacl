@@ -110,19 +110,34 @@ export const createMatch = run(async (req, res) => {
   res.status(201).json({ success: true, match });
 });
 
+
 export const listMatches = run(async (req, res) => {
-  const filter = req.user.role === "scorer" ? { scorer: req.user.id } : {};
-  const matches = await Match.find({
+  const filter = {
     organization: req.organizationId,
-    ...(req.user.role === "scorer" ? { scorer: req.user.id } : {}),
-    filter,
-  })
+  };
+
+  // Scorers can only see matches assigned to them.
+  // Organization admins and admins can see all matches
+  // belonging to their organization.
+  if (req.user.role === "scorer") {
+    filter.scorer = req.user.id;
+  }
+
+  const matches = await Match.find(filter)
     .populate("teamA", "name")
     .populate("teamB", "name")
-    .populate("scorer", "name")
-    .sort({ createdAt: -1 });
-  res.json({ success: true, matches });
+    .populate("scorer", "name email")
+    .populate("tournament", "name")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return res.status(200).json({
+    success: true,
+    count: matches.length,
+    matches,
+  });
 });
+
 export const getMatch = run(async (req, res) => {
   const match = await Match.findOne({
     _id: req.params.matchId,

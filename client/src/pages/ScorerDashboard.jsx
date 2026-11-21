@@ -50,7 +50,7 @@ function PlayerSelect({
           return (
             <option key={p._id} value={p._id} disabled={Boolean(reason)}>
               {p.fullName}
-              {reason ? ` — ${reason}` : ""}
+              {reason ? `  ${reason}` : ""}
             </option>
           );
         })}

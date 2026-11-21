@@ -13,8 +13,21 @@ import {
   ArrowUpRight,
   Pencil,
   Trash2,
+  X,
+  Download,
+  Columns3,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+  RefreshCw,
+  SlidersHorizontal,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import AddTournamentsModal from "../components/AddTournamentsModal";
 import { api } from "../lib/api";
 
@@ -60,27 +73,801 @@ function ErrorState({ message, onRetry }) {
   );
 }
 
-function DataTable({ columns, rows, emptyTitle, emptyDescription, renderRow }) {
+function DataTable({
+  columns = [],
+  rows = [],
+  emptyTitle = "No records found",
+  emptyDescription = "There are no records to display.",
+  renderRow,
+
+  // Display
+  loading = false,
+  stickyHeader = true,
+  minWidth = "800px",
+  density: initialDensity = "comfortable",
+
+  // Features
+  searchable = true,
+  sortable = true,
+  filterable = true,
+  selectable = false,
+  pagination = true,
+  exportable = true,
+  columnVisibility = true,
+  refreshable = true,
+
+  // Pagination
+  defaultPageSize = 10,
+  pageSizeOptions = [10, 20, 50, 100],
+
+  // Server-side pagination:
+  // { page, pageSize, total, onPageChange, onPageSizeChange }
+  serverPagination,
+
+  // Actions
+  onRefresh,
+  onSelectionChange,
+  bulkActions,
+  toolbarActions,
+  filters,
+
+  // Selection
+  getRowId = (row, index) => row?._id || row?.id || index,
+
+  searchPlaceholder = "Search all records...",
+  emptyAction,
+}) {
+  const [search, setSearch] = useState("");
+  const [sortConfig, setSortConfig] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [visibleColumns, setVisibleColumns] = useState({});
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [density, setDensity] = useState(initialDensity);
+  const [columnFilters, setColumnFilters] = useState({});
+
+  const isServerSide = Boolean(serverPagination);
+
+  const normalizedColumns = useMemo(
+    () =>
+      columns.map((column, index) => {
+        if (typeof column === "string") {
+          return {
+            key: `column_${index}`,
+            label: column,
+            sortable: false,
+            searchable: true,
+            filterable: false,
+            visible: true,
+          };
+        }
+
+        return {
+          ...column,
+          key: column.key || column.accessor || `column_${index}`,
+          label: column.label || column.header || column.key,
+          sortable: column.sortable !== false,
+          searchable: column.searchable !== false,
+          filterable: Boolean(column.filterOptions),
+          visible: column.hidden !== true,
+        };
+      }),
+    [columns],
+  );
+
+  // Resolve nested object paths such as organization.name
+  const getValue = (row, column) => {
+    if (typeof column.accessor === "function") {
+      return column.accessor(row);
+    }
+
+    const path = column.accessor || column.key;
+
+    if (!path || path.startsWith("column_")) return "";
+
+    return path.split(".").reduce((value, key) => value?.[key], row);
+  };
+
+  const getRowKey = (row, index) => String(getRowId(row, index));
+
+  const activeColumns = normalizedColumns.filter(
+    (column) => visibleColumns[column.key] !== false,
+  );
+
+  const hasColumnFilters = normalizedColumns.some(
+    (column) => column.filterOptions?.length,
+  );
+
+  // Search and column filtering
+  const filteredRows = useMemo(() => {
+    let result = [...rows];
+
+    if (search.trim()) {
+      const query = search.toLowerCase().trim();
+
+      result = result.filter((row) => {
+        return normalizedColumns.some((column) => {
+          if (!column.searchable) return false;
+
+          const value = getValue(row, column);
+
+          return String(value ?? "")
+            .toLowerCase()
+            .includes(query);
+        });
+      });
+    }
+
+    Object.entries(columnFilters).forEach(([key, value]) => {
+      if (!value || value === "all") return;
+
+      const column = normalizedColumns.find((item) => item.key === key);
+
+      if (!column) return;
+
+      result = result.filter(
+        (row) => String(getValue(row, column)) === String(value),
+      );
+    });
+
+    return result;
+  }, [rows, search, columnFilters, normalizedColumns]);
+
+  // Multi-column sorting
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.length || isServerSide) {
+      return filteredRows;
+    }
+
+    return [...filteredRows].sort((a, b) => {
+      for (const sort of sortConfig) {
+        const column = normalizedColumns.find((item) => item.key === sort.key);
+
+        if (!column) continue;
+
+        const first = getValue(a, column);
+        const second = getValue(b, column);
+
+        if (first == null && second == null) continue;
+        if (first == null) return 1;
+        if (second == null) return -1;
+
+        let comparison;
+
+        if (typeof first === "number" && typeof second === "number") {
+          comparison = first - second;
+        } else {
+          comparison = String(first).localeCompare(String(second), undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        }
+
+        if (comparison !== 0) {
+          return sort.direction === "asc" ? comparison : -comparison;
+        }
+      }
+
+      return 0;
+    });
+  }, [filteredRows, sortConfig, normalizedColumns, isServerSide]);
+
+  // Client/server pagination
+  const currentPage = isServerSide ? serverPagination.page : page;
+
+  const currentPageSize = isServerSide ? serverPagination.pageSize : pageSize;
+
+  const totalRows = isServerSide ? serverPagination.total : sortedRows.length;
+
+  const totalPages = Math.max(1, Math.ceil(totalRows / currentPageSize));
+
+  const displayedRows = isServerSide
+    ? rows
+    : pagination
+      ? sortedRows.slice(
+          (currentPage - 1) * currentPageSize,
+          currentPage * currentPageSize,
+        )
+      : sortedRows;
+
+  const startRow =
+    totalRows === 0 ? 0 : (currentPage - 1) * currentPageSize + 1;
+
+  const endRow = Math.min(currentPage * currentPageSize, totalRows);
+
+  // Reset client page when filters change
+  useEffect(() => {
+    if (!isServerSide) setPage(1);
+  }, [search, columnFilters, pageSize, isServerSide]);
+
+  // Keep selection valid when data changes
+  useEffect(() => {
+    const validIds = new Set(rows.map((row, index) => getRowKey(row, index)));
+
+    setSelectedRows((previous) => previous.filter((id) => validIds.has(id)));
+  }, [rows]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedRows);
+  }, [selectedRows, onSelectionChange]);
+
+  const changePage = (nextPage) => {
+    const safePage = Math.max(1, Math.min(totalPages, nextPage));
+
+    if (isServerSide) {
+      serverPagination.onPageChange?.(safePage);
+    } else {
+      setPage(safePage);
+    }
+  };
+
+  const changePageSize = (size) => {
+    if (isServerSide) {
+      serverPagination.onPageSizeChange?.(size);
+    } else {
+      setPageSize(size);
+    }
+
+    changePage(1);
+  };
+
+  // Sorting
+  const handleSort = (column) => {
+    if (!sortable || !column.sortable) return;
+
+    setSortConfig((previous) => {
+      const existing = previous.find((item) => item.key === column.key);
+
+      if (existing) {
+        if (existing.direction === "asc") {
+          return previous.map((item) =>
+            item.key === column.key ? { ...item, direction: "desc" } : item,
+          );
+        }
+
+        return previous.filter((item) => item.key !== column.key);
+      }
+
+      return [...previous, { key: column.key, direction: "asc" }];
+    });
+  };
+
+  const getSortIcon = (key) => {
+    const sort = sortConfig.find((item) => item.key === key);
+
+    if (!sort) {
+      return <ArrowUpDown size={14} className="opacity-30" />;
+    }
+
+    return sort.direction === "asc" ? (
+      <ArrowUp size={14} />
+    ) : (
+      <ArrowDown size={14} />
+    );
+  };
+
+  // Row selection
+  const visibleIds = displayedRows.map((row, index) =>
+    getRowKey(
+      row,
+      isServerSide
+        ? (currentPage - 1) * currentPageSize + index
+        : pagination
+          ? (currentPage - 1) * currentPageSize + index
+          : index,
+    ),
+  );
+
+  const allSelected =
+    visibleIds.length > 0 &&
+    visibleIds.every((id) => selectedRows.includes(id));
+
+  const toggleAll = () => {
+    setSelectedRows((previous) => {
+      if (allSelected) {
+        return previous.filter((id) => !visibleIds.includes(id));
+      }
+
+      return [...new Set([...previous, ...visibleIds])];
+    });
+  };
+
+  const toggleRow = (id) => {
+    setSelectedRows((previous) =>
+      previous.includes(id)
+        ? previous.filter((item) => item !== id)
+        : [...previous, id],
+    );
+  };
+
+  const clearSelection = () => setSelectedRows([]);
+
+  // CSV export
+  const exportCSV = () => {
+    const exportColumns = activeColumns.filter(
+      (column) => column.exportable !== false,
+    );
+
+    const escapeCSV = (value) => {
+      const text = String(value ?? "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/"/g, '""');
+
+      return `"${text}"`;
+    };
+
+    const header = exportColumns
+      .map((column) => escapeCSV(column.label))
+      .join(",");
+
+    const body = sortedRows.map((row) =>
+      exportColumns.map((column) => escapeCSV(getValue(row, column))).join(","),
+    );
+
+    const csv = [header, ...body].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `export-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const cellPadding =
+    density === "compact"
+      ? "px-4 py-2.5"
+      : density === "comfortable"
+        ? "px-5 py-4"
+        : "px-5 py-6";
+
+  const inputClass =
+    "rounded-lg border border-white/10 bg-[#050817] px-3 py-2 text-xs text-white outline-none focus:border-lime/50";
+
   return (
-    <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-white/10 [&>table]:whitespace-nowrap">
-      <table className="w-full min-w-[640px] text-left text-sm">
-        <thead className="bg-white/[0.04] text-xs uppercase text-emerald-100/50">
-          <tr>
-            {columns.map((column) => (
-              <th key={column} className="px-5 py-4 font-semibold">
-                {column}
-              </th>
+    <div className="w-full min-w-0 space-y-4">
+      {/* TOOLBAR */}
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {searchable && (
+            <div className="relative w-full sm:max-w-sm">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full rounded-xl border border-white/10 bg-[#050817] py-2.5 pl-10 pr-10 text-sm text-white outline-none placeholder:text-white/30 focus:border-lime/50"
+              />
+
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {filters}
+
+          {selectedRows.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-lime">
+              <Check size={14} />
+              {selectedRows.length} selected
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-white/40 underline hover:text-white"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {bulkActions && selectedRows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {bulkActions({
+                selectedIds: selectedRows,
+                clearSelection,
+              })}
+            </div>
+          )}
+
+          {toolbarActions}
+
+          {refreshable && onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/5 disabled:opacity-40"
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
+
+          {exportable && (
+            <button
+              type="button"
+              onClick={exportCSV}
+              disabled={sortedRows.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/5 disabled:opacity-40"
+            >
+              <Download size={15} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          )}
+
+          {columnVisibility && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowColumnMenu((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/5"
+              >
+                <Columns3 size={15} />
+                <span className="hidden sm:inline">Columns</span>
+                <ChevronDown size={14} />
+              </button>
+
+              {showColumnMenu && (
+                <div className="absolute right-0 z-30 mt-2 max-h-80 w-56 overflow-y-auto rounded-xl border border-white/10 bg-[#101a2b] p-3 shadow-2xl">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold text-white">
+                      Visible columns
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowColumnMenu(false)}
+                      className="text-white/40 hover:text-white"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  {normalizedColumns.map((column) => (
+                    <label
+                      key={column.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs text-white/70 hover:bg-white/5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[column.key] !== false}
+                        onChange={(e) =>
+                          setVisibleColumns((previous) => ({
+                            ...previous,
+                            [column.key]: e.target.checked,
+                          }))
+                        }
+                        className="accent-lime"
+                      />
+
+                      {column.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <select
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            className={inputClass}
+            title="Table density"
+          >
+            <option value="compact">Compact</option>
+            <option value="comfortable">Comfortable</option>
+            <option value="spacious">Spacious</option>
+          </select>
+        </div>
+      </div>
+
+      {/* COLUMN FILTERS */}
+      {filterable && hasColumnFilters && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <SlidersHorizontal size={15} className="text-white/40" />
+
+          {normalizedColumns
+            .filter((column) => column.filterOptions?.length)
+            .map((column) => (
+              <select
+                key={column.key}
+                value={columnFilters[column.key] || "all"}
+                onChange={(e) =>
+                  setColumnFilters((previous) => ({
+                    ...previous,
+                    [column.key]: e.target.value,
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="all">All {column.label}</option>
+
+                {column.filterOptions.map((option) => {
+                  const value =
+                    typeof option === "object" ? option.value : option;
+
+                  const label =
+                    typeof option === "object" ? option.label : option;
+
+                  return (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
             ))}
-          </tr>
-        </thead>
 
-        <tbody className="divide-y divide-white/10">
-          {rows.map((row, index) => renderRow(row, index))}
-        </tbody>
-      </table>
+          {Object.values(columnFilters).some(
+            (value) => value && value !== "all",
+          ) && (
+            <button
+              type="button"
+              onClick={() => setColumnFilters({})}
+              className="text-xs text-red-300 hover:text-red-200"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
-      {rows.length === 0 && (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
+      {/* TABLE */}
+      <div className="w-full min-w-0 overflow-hidden rounded-xl border border-white/10">
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="w-full text-left text-sm" style={{ minWidth }}>
+            <thead
+              className={`bg-[#101a2b] text-xs uppercase tracking-wider text-emerald-100/50 ${
+                stickyHeader ? "sticky top-0 z-10" : ""
+              }`}
+            >
+              <tr>
+                {selectable && (
+                  <th className="w-12 px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="h-4 w-4 accent-lime"
+                      aria-label="Select all rows on this page"
+                    />
+                  </th>
+                )}
+
+                {activeColumns.map((column) => {
+                  const sortIndex = sortConfig.findIndex(
+                    (item) => item.key === column.key,
+                  );
+
+                  return (
+                    <th
+                      key={column.key}
+                      className={`${cellPadding} whitespace-nowrap font-semibold ${
+                        column.headerClassName || ""
+                      }`}
+                      style={{
+                        width: column.width,
+                        minWidth: column.minWidth,
+                        textAlign: column.align || "left",
+                      }}
+                    >
+                      {sortable && column.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(column)}
+                          className="inline-flex items-center gap-2 transition hover:text-lime"
+                        >
+                          {column.label}
+                          {getSortIcon(column.key)}
+
+                          {sortIndex >= 0 && sortConfig.length > 1 && (
+                            <span className="text-[10px] text-lime">
+                              {sortIndex + 1}
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        column.label
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-white/[0.07]">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    {selectable && (
+                      <td className={cellPadding}>
+                        <div className="h-4 w-4 animate-pulse rounded bg-white/10" />
+                      </td>
+                    )}
+
+                    {activeColumns.map((column) => (
+                      <td key={column.key} className={cellPadding}>
+                        <div className="h-4 max-w-32 animate-pulse rounded bg-white/10" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : displayedRows.length > 0 ? (
+                displayedRows.map((row, index) => {
+                  const absoluteIndex =
+                    (currentPage - 1) * currentPageSize + index;
+                  const rowId = getRowKey(row, absoluteIndex);
+
+                  // renderRow supports either a complete <tr> or a fragment of <td>s.
+                  // Never wrap custom row output in another <tr>.
+                  if (renderRow) {
+                    return (
+                      <Fragment key={rowId}>
+                        {renderRow(row, absoluteIndex)}
+                      </Fragment>
+                    );
+                  }
+
+                  return (
+                    <tr
+                      key={rowId}
+                      className={`transition-colors hover:bg-white/[0.035] ${
+                        selectedRows.includes(rowId) ? "bg-lime/[0.045]" : ""
+                      }`}
+                    >
+                      {selectable && (
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.includes(rowId)}
+                            onChange={() => toggleRow(rowId)}
+                            className="h-4 w-4 accent-lime"
+                            aria-label="Select row"
+                          />
+                        </td>
+                      )}
+                      {activeColumns.map((column) => (
+                        <td
+                          key={column.key}
+                          className={`${cellPadding} text-white/75 ${
+                            column.cellClassName || ""
+                          }`}
+                          style={{ textAlign: column.align || "left" }}
+                        >
+                          {column.render
+                            ? column.render(row, absoluteIndex)
+                            : (getValue(row, column) ?? "—")}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td
+                    colSpan={activeColumns.length + (selectable ? 1 : 0)}
+                    className="px-5 py-12 text-center"
+                  >
+                    <div className="flex flex-col items-center">
+                      <div className="mb-3 rounded-full bg-white/5 p-4 text-white/30">
+                        <Search size={22} />
+                      </div>
+
+                      <p className="font-semibold text-white">
+                        {search ||
+                        Object.values(columnFilters).some(
+                          (v) => v && v !== "all",
+                        )
+                          ? "No matching records"
+                          : emptyTitle}
+                      </p>
+
+                      <p className="mt-1 max-w-sm text-xs text-white/40">
+                        {emptyDescription}
+                      </p>
+
+                      {emptyAction}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      {pagination && (
+        <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+            <span>
+              Showing{" "}
+              <strong className="text-white">
+                {startRow}-{endRow}
+              </strong>{" "}
+              of <strong className="text-white">{totalRows}</strong>
+            </span>
+
+            <select
+              value={currentPageSize}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+              className={inputClass}
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size} rows
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={currentPage <= 1 || loading}
+              onClick={() => changePage(1)}
+              className="rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20"
+              title="First page"
+            >
+              <ChevronsLeft size={17} />
+            </button>
+
+            <button
+              type="button"
+              disabled={currentPage <= 1 || loading}
+              onClick={() => changePage(currentPage - 1)}
+              className="rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20"
+              title="Previous page"
+            >
+              <ChevronLeft size={17} />
+            </button>
+
+            <span className="min-w-24 text-center text-xs text-white/60">
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              disabled={currentPage >= totalPages || loading}
+              onClick={() => changePage(currentPage + 1)}
+              className="rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20"
+              title="Next page"
+            >
+              <ChevronRight size={17} />
+            </button>
+
+            <button
+              type="button"
+              disabled={currentPage >= totalPages || loading}
+              onClick={() => changePage(totalPages)}
+              className="rounded-lg p-2 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-20"
+              title="Last page"
+            >
+              <ChevronsRight size={17} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -244,7 +1031,7 @@ export function SuperAdminDashboard() {
       setLoading(true);
       setError("");
 
-      const { data } = await api.get("/super-admin/dashboard");
+      const { data } = await api.get("/saas/admin/dashboard");
       setStats(data?.stats || {});
     } catch (err) {
       setError(getErrorMessage(err));
@@ -270,27 +1057,55 @@ export function SuperAdminDashboard() {
         <ErrorState message={error} onRetry={fetchDashboard} />
       ) : (
         <>
-          <div className="grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Total Organizations"
               value={stats?.totalOrganizations ?? 0}
               icon={Building2}
-              description="All registered organizations"
             />
+
             <StatCard
               title="Active Organizations"
               value={stats?.activeOrganizations ?? 0}
               icon={ShieldCheck}
-              description="Currently active"
             />
+
             <StatCard
               title="Total Users"
               value={stats?.totalUsers ?? 0}
               icon={Users}
-              description="Across the platform"
+            />
+
+            <StatCard
+              title="Total Subscriptions"
+              value={stats?.totalSubscriptions ?? 0}
+              icon={CreditCard}
+            />
+
+            <StatCard
+              title="Active Subscriptions"
+              value={stats?.activeSubscriptions ?? 0}
+              icon={CheckCircle}
+            />
+
+            <StatCard
+              title="Trial Subscriptions"
+              value={stats?.trialSubscriptions ?? 0}
+              icon={CalendarDays}
+            />
+
+            <StatCard
+              title="Expired Subscriptions"
+              value={stats?.expiredSubscriptions ?? 0}
+              icon={Wallet}
+            />
+
+            <StatCard
+              title="Suspended Organizations"
+              value={stats?.suspendedOrganizations ?? 0}
+              icon={ShieldCheck}
             />
           </div>
-
           <div className="mt-6">
             <Panel title="Platform Metrics">
               <p className="text-sm text-emerald-100/50">
@@ -304,9 +1119,6 @@ export function SuperAdminDashboard() {
     </div>
   );
 }
-// --------------------------------------------------
-// SUPER ADMIN MANAGEMENT SCREENS
-// --------------------------------------------------
 
 // --------------------------------------------------
 // ORGANIZER DASHBOARD
@@ -324,7 +1136,7 @@ export function Organizations() {
       setLoading(true);
       setError("");
 
-      const { data } = await api.get("/super-admin/organizations");
+      const { data } = await api.get("/saas/admin/organizations");
       setOrganizations(data?.organizations || []);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -349,7 +1161,7 @@ export function Organizations() {
     }
 
     try {
-      await api.patch(`/super-admin/organizations/${org._id}/status`, {
+      await api.patch(`/saas/admin/organizations/${org._id}/status`, {
         status: nextStatus,
       });
 
@@ -403,32 +1215,63 @@ export function Organizations() {
         ) : (
           <DataTable
             columns={[
-              "Organization",
-              "Slug",
-              "Country",
-              "Created",
-              "Status",
-              "Actions",
+              {
+                key: "name",
+                label: "Organization",
+                accessor: "name",
+              },
+              {
+                key: "slug",
+                label: "Slug",
+                accessor: "slug",
+              },
+              {
+                key: "country",
+                label: "Country",
+                accessor: "address.country",
+              },
+              {
+                key: "createdAt",
+                label: "Created",
+                accessor: "createdAt",
+                render: (org) => formatDate(org.createdAt),
+              },
+              {
+                key: "status",
+                label: "Status",
+                accessor: "status",
+                filterOptions: ["active", "suspended", "pending"],
+                render: (org) => <StatusBadge status={org.status} />,
+              },
+              {
+                key: "actions",
+                label: "Actions",
+                sortable: false,
+                searchable: false,
+                exportable: false,
+              },
             ]}
-            rows={filteredOrganizations}
+            rows={organizations}
+            loading={loading}
+            searchable
+            sortable
+            filterable
+            pagination
+            exportable
+            columnVisibility
+            refreshable
+            onRefresh={fetchOrganizations}
             emptyTitle="No organizations found"
             emptyDescription="Registered organizations will appear here."
             renderRow={(org) => (
-              <tr key={org._id}>
+              <>
                 <td className="px-5 py-4 font-semibold">{org.name}</td>
-
-                <td className="px-5 py-4 text-emerald-100/60">
-                  {org.slug || "—"}
-                </td>
-
+                <td className="px-5 py-4 text-white/60">{org.slug || "—"}</td>
                 <td className="px-5 py-4">{org.address?.country || "—"}</td>
-
                 <td className="px-5 py-4">{formatDate(org.createdAt)}</td>
-
                 <td className="px-5 py-4">
                   <StatusBadge status={org.status} />
                 </td>
-
                 <td className="px-5 py-4">
                   <button
                     onClick={() => updateStatus(org)}
@@ -437,7 +1280,7 @@ export function Organizations() {
                     {org.status === "active" ? "Suspend" : "Activate"}
                   </button>
                 </td>
-              </tr>
+              </>
             )}
           />
         )}
@@ -447,40 +1290,283 @@ export function Organizations() {
 }
 
 export function PlatformUsers() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("all");
+  const [status, setStatus] = useState("all");
+
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
+  const fetchUsers = async (page = pagination.page) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const { data } = await api.get("/saas/admin/users", {
+        params: {
+          page,
+          limit: pagination.limit,
+          search: search.trim(),
+          role,
+          status,
+        },
+      });
+
+      const userList = Array.isArray(data?.users)
+        ? data.users
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+      setUsers(userList);
+
+      setPagination((previous) => ({
+        ...previous,
+        ...(data?.pagination || {}),
+        page: data?.pagination?.page || page,
+      }));
+    } catch (err) {
+      setUsers([]);
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchUsers(1);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search, role, status]);
+
+  const handleStatusChange = async (user) => {
+    const currentlyActive = user.isActive !== false;
+    const nextStatus = !currentlyActive;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${
+        nextStatus ? "activate" : "deactivate"
+      } ${user.name || user.email || "this user"}?`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await api.patch(`/saas/admin/users/${user._id}/status`, {
+        isActive: nextStatus,
+      });
+
+      await fetchUsers(pagination.page);
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  const changePage = (nextPage) => {
+    if (nextPage < 1 || (pagination.pages && nextPage > pagination.pages)) {
+      return;
+    }
+
+    fetchUsers(nextPage);
+  };
+
+  const getOrganizationName = (user) => {
+    if (!user.organization) return "—";
+
+    if (typeof user.organization === "string") {
+      return user.organization;
+    }
+
+    return user.organization.name || user.organization.slug || "—";
+  };
+
+  const getUserName = (user) =>
+    user.name || user.fullName || user.username || "Unnamed User";
+
+  const getUserStatus = (user) =>
+    user.isActive === false ? "Inactive" : "Active";
+
+  const getRoleLabel = (value) => {
+    const labels = {
+      super_admin: "Super Admin",
+      org_admin: "Organization Admin",
+      admin: "Admin",
+      auctioneer: "Auctioneer",
+      team_owner: "Team Owner",
+      scorer: "Scorer",
+      player: "Player",
+    };
+
+    return labels[value] || value?.replaceAll("_", " ") || "—";
+  };
+
   return (
     <div className="w-full min-w-0">
       <PageHeader
         title="Platform Users"
-        description="View users across all SACL organizations."
+        description="View and manage users across all SACL organizations."
       />
 
+      {/* Filters */}
       <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <SearchBar placeholder="Search by name, email or phone..." />
+        <div className="relative w-full sm:max-w-xs">
+          <Search
+            size={17}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-100/40"
+          />
 
-        <select className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-2.5 text-sm outline-none sm:w-auto">
-          <option>All roles</option>
-          <option>Organization Admin</option>
-          <option>Auctioneer</option>
-          <option>Scorer</option>
-          <option>Team Owner</option>
-          <option>Player</option>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, email or phone..."
+            className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-emerald-100/30 focus:border-lime/50"
+          />
+        </div>
+
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm text-white outline-none sm:w-auto"
+        >
+          <option value="all">All Roles</option>
+          <option value="super_admin">Super Admin</option>
+          <option value="org_admin">Organization Admin</option>
+          <option value="admin">Admin</option>
+          <option value="auctioneer">Auctioneer</option>
+          <option value="team_owner">Team Owner</option>
+          <option value="scorer">Scorer</option>
+          <option value="player">Player</option>
         </select>
+
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm text-white outline-none sm:w-auto"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={() => fetchUsers(1)}
+          disabled={loading}
+          className="rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/5 disabled:opacity-50 sm:py-2.5"
+        >
+          {loading ? "Loading..." : "Refresh"}
+        </button>
       </div>
 
-      <Panel title="All Users">
-        <TableShell
-          columns={[
-            "User",
-            "Organization",
-            "Role",
-            "Email",
-            "Status",
-            "Joined",
-            "Actions",
-          ]}
-          emptyTitle="No users loaded"
-          emptyDescription="Organization users will appear here."
-        />
+      {/* Users table */}
+      <Panel title={`All Platform Users (${pagination.total || users.length})`}>
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState
+            message={error}
+            onRetry={() => fetchUsers(pagination.page)}
+          />
+        ) : (
+          <>
+            <DataTable
+              columns={[
+                "User",
+                "Organization",
+                "Role",
+                "Email",
+                "Phone",
+                "Status",
+                "Joined",
+                "Actions",
+              ]}
+              rows={users}
+              pagination={false}
+              searchable={false}
+              sortable={false}
+              filterable={false}
+              emptyTitle="No users found"
+              emptyDescription="Users from your registered organizations will appear here."
+              renderRow={(user) => {
+                const active = user.isActive !== false;
+
+                return (
+                  <tr
+                    key={user._id}
+                    className="transition hover:bg-white/[0.03]"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-white">
+                        {getUserName(user)}
+                      </p>
+                      <p className="mt-1 text-xs text-emerald-100/40">
+                        ID: {user._id || "—"}
+                      </p>
+                    </td>
+
+                    <td className="px-5 py-4 text-emerald-100/70">
+                      {getOrganizationName(user)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold capitalize text-blue-300">
+                        {getRoleLabel(user.role)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-emerald-100/70">
+                      {user.email || "—"}
+                    </td>
+
+                    <td className="px-5 py-4 text-emerald-100/70">
+                      {user.phone || "—"}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <StatusBadge status={active ? "Active" : "Suspended"} />
+                    </td>
+
+                    <td className="px-5 py-4 text-emerald-100/60">
+                      {formatDate(user.createdAt)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-5 py-4">
+                      <button
+                        type="button"
+                        disabled={user.role === "super_admin"}
+                        onClick={() => handleStatusChange(user)}
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                          active
+                            ? "border-red-400/20 text-red-300 hover:bg-red-500/10"
+                            : "border-emerald-400/20 text-emerald-300 hover:bg-emerald-500/10"
+                        }`}
+                      >
+                        {active ? "Deactivate" : "Activate"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }}
+            />
+
+            <Pagination
+              pagination={pagination}
+              setPage={(nextPage) => changePage(nextPage)}
+              loading={loading}
+              label="users"
+            />
+          </>
+        )}
       </Panel>
     </div>
   );
@@ -1239,6 +2325,7 @@ function ManagementFilters({
 }
 
 import { Loader2, CheckCircle } from "lucide-react";
+import MatchAdminForm from "../components/MatchAdminForm";
 
 function DeleteApplicationButton({ item, entity, onDeleted }) {
   const [busy, setBusy] = useState(false);
@@ -1409,33 +2496,102 @@ function ReviewButtons({ item, type, onReviewed }) {
   );
 }
 
-function Pagination({ pagination, setPage }) {
-  if (!pagination || pagination.pages <= 1) return null;
+function Pagination({
+  pagination,
+  setPage,
+  loading = false,
+  label = "records",
+}) {
+  const currentPage = Math.max(1, Number(pagination?.page) || 1);
+  const totalPages = Math.max(1, Number(pagination?.pages) || 1);
+  const total = Math.max(0, Number(pagination?.total) || 0);
+  const limit = Math.max(
+    1,
+    Number(pagination?.limit || pagination?.pageSize) || 20,
+  );
+  const start = total === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const end = Math.min(currentPage * limit, total);
+  const buttonClass =
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:border-lime/30 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-30";
+
+  if (total === 0) {
+    return (
+      <div className="mt-4 border-t border-white/[0.06] pt-4 text-xs text-white/45">
+        No {label} to display
+      </div>
+    );
+  }
+
+  const goTo = (nextPage) => {
+    const safePage = Math.max(1, Math.min(totalPages, nextPage));
+    if (safePage !== currentPage && !loading) setPage(safePage);
+  };
+
+  const first = Math.max(1, currentPage - 2);
+  const last = Math.min(totalPages, currentPage + 2);
+  const pageNumbers = Array.from(
+    { length: last - first + 1 },
+    (_, index) => first + index,
+  );
 
   return (
-    <div className="mt-5 flex items-center justify-between gap-3">
-      <span className="text-xs text-white/50">
-        Page {pagination.page} of {pagination.pages} · {pagination.total}{" "}
-        records
-      </span>
+    <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-white/50">
+        Showing <strong className="text-white">{start}-{end}</strong> of{" "}
+        <strong className="text-white">{total}</strong> {label}
+      </p>
 
-      <div className="flex gap-2">
-        <button
-          disabled={pagination.page <= 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"
-        >
-          Previous
-        </button>
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center gap-1">
+          <button type="button" className={buttonClass} disabled={currentPage <= 1 || loading}
+            onClick={() => goTo(1)} aria-label="First page">
+            <ChevronsLeft size={15} />
+          </button>
+          <button type="button" className={buttonClass} disabled={currentPage <= 1 || loading}
+            onClick={() => goTo(currentPage - 1)} aria-label="Previous page">
+            <ChevronLeft size={15} />
+          </button>
 
-        <button
-          disabled={pagination.page >= pagination.pages}
-          onClick={() => setPage((p) => p + 1)}
-          className="rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
+          {first > 1 && (
+            <>
+              <button type="button" className={buttonClass} disabled={loading} onClick={() => goTo(1)}>1</button>
+              {first > 2 && <span className="px-1 text-xs text-white/35">…</span>}
+            </>
+          )}
+
+          {pageNumbers.map((number) => (
+            <button
+              key={number}
+              type="button"
+              disabled={loading}
+              onClick={() => goTo(number)}
+              aria-current={number === currentPage ? "page" : undefined}
+              className={number === currentPage
+                ? "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-lime/30 bg-lime/10 px-3 text-xs font-bold text-lime"
+                : buttonClass}
+            >
+              {number}
+            </button>
+          ))}
+
+          {last < totalPages && (
+            <>
+              {last < totalPages - 1 && <span className="px-1 text-xs text-white/35">…</span>}
+              <button type="button" className={buttonClass} disabled={loading}
+                onClick={() => goTo(totalPages)}>{totalPages}</button>
+            </>
+          )}
+
+          <button type="button" className={buttonClass} disabled={currentPage >= totalPages || loading}
+            onClick={() => goTo(currentPage + 1)} aria-label="Next page">
+            <ChevronRight size={15} />
+          </button>
+          <button type="button" className={buttonClass} disabled={currentPage >= totalPages || loading}
+            onClick={() => goTo(totalPages)} aria-label="Last page">
+            <ChevronsRight size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1544,6 +2700,10 @@ export function TeamsManagement() {
                 "Actions",
               ]}
               rows={teams}
+              pagination={false}
+              searchable={false}
+              sortable={false}
+              filterable={false}
               emptyTitle="No teams found"
               emptyDescription="Team applications will appear here."
               renderRow={(team) => (
@@ -1567,7 +2727,8 @@ export function TeamsManagement() {
                   <td className="px-5 py-4">
                     <StatusBadge status={team.approvalStatus} />
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="min-w-[260px] px-5 py-4">
+                    <div className="flex flex-wrap items-start gap-2">
                     <ReviewButtons
                       item={team}
                       type="team"
@@ -1578,12 +2739,13 @@ export function TeamsManagement() {
                       entity="team"
                       onDeleted={fetchTeams}
                     />
+                    </div>
                   </td>
                 </tr>
               )}
             />
 
-            <Pagination pagination={pagination} setPage={setPage} />
+            <Pagination pagination={pagination} setPage={setPage} loading={loading} label="teams" />
           </>
         )}
       </Panel>
@@ -2130,70 +3292,75 @@ export function PlayersManagement() {
           <>
             <DataTable
               columns={[
-                "Player",
-                "Category",
-                "Playing Role",
-                "Tournament",
-                "Payment",
-                // "Approval",
-                "Actions",
-              ]}
-              rows={players}
-              emptyTitle="No players found"
-              emptyDescription="Player applications will appear here."
-              renderRow={(player) => (
-                <tr key={player._id} className="hover:bg-white/[0.03]">
-                  <td className="px-5 py-4">
-                    <p className="font-semibold">{player.fullName}</p>
-                    <p className="text-xs text-white/40">
-                      {player.user?.phone || player.user?.email || "—"}
-                    </p>
-                  </td>
-                  <td className="px-5 py-4">{player.category}</td>
-                  <td className="px-5 py-4">
-                    {player.role?.replaceAll("_", " ")}
-                  </td>
-                  <td className="px-5 py-4">
-                    {player.tournament?.name || "—"}
-                  </td>
-
-                  <td className="px-5 py-4">
+                {
+                  key: "fullName",
+                  label: "Player",
+                  accessor: "fullName",
+                  render: (player) => (
+                    <div>
+                      <p className="font-semibold">{player.fullName}</p>
+                      <p className="text-xs text-white/40">
+                        {player.user?.phone || player.user?.email || "—"}
+                      </p>
+                    </div>
+                  ),
+                },
+                {
+                  key: "category",
+                  label: "Category",
+                  accessor: "category",
+                  filterOptions: ["ICONIC", "A", "B", "C", "D"],
+                },
+                {
+                  key: "role",
+                  label: "Playing Role",
+                  accessor: "role",
+                  render: (player) => player.role?.replaceAll("_", " ") || "—",
+                },
+                {
+                  key: "tournament",
+                  label: "Tournament",
+                  accessor: "tournament.name",
+                },
+                {
+                  key: "payment",
+                  label: "Payment",
+                  accessor: "paymentVerificationStatus",
+                  render: (player) => (
                     <button
                       type="button"
                       onClick={() => setSelectedPayment(player)}
-                      className="group flex items-center gap-2 rounded-lg border border-[#f4c34e]/20 bg-[#f4c34e]/5 px-3 py-2 transition hover:border-[#f4c34e]/60 hover:bg-[#f4c34e]/10"
+                      className="flex items-center gap-2 rounded-lg border border-[#f4c34e]/20 bg-[#f4c34e]/5 px-3 py-2 hover:bg-[#f4c34e]/10"
                     >
                       <StatusBadge
                         status={
                           player.paymentVerificationStatus || "not_submitted"
                         }
                       />
-
-                      <span className="text-xs font-semibold text-[#f4c34e] group-hover:underline">
+                      <span className="text-xs font-semibold text-[#f4c34e]">
                         View Proof
                       </span>
                     </button>
-                  </td>
-                  {/* 
-                  <td className="px-5 py-4">
-                    <StatusBadge status={player.approvalStatus} />
-                  </td> */}
-
-                  <td className="px-5 py-4">
-                    <div className="flex min-w-[280px] items-center gap-2">
-                      {/* Edit */}
+                  ),
+                },
+                {
+                  key: "actions",
+                  label: "Actions",
+                  sortable: false,
+                  searchable: false,
+                  exportable: false,
+                  render: (player) => (
+                    <div className="flex min-w-[320px] flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedPlayer(player)}
-                        title="Edit player"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-400"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold hover:border-blue-400/40 hover:bg-blue-500/10"
                       >
                         <Pencil size={14} />
                         Edit
                       </button>
 
-                      {/* Review */}
-                      <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                      <div className="rounded-lg border border-white/10 p-1">
                         <ReviewButtons
                           item={player}
                           type="player"
@@ -2201,21 +3368,30 @@ export function PlayersManagement() {
                         />
                       </div>
 
-                      {/* Delete */}
-                      <div className="ml-auto border-l border-white/10 pl-2">
-                        <DeleteApplicationButton
-                          item={player}
-                          entity="player"
-                          onDeleted={fetchPlayers}
-                        />
-                      </div>
+                      <DeleteApplicationButton
+                        item={player}
+                        entity="player"
+                        onDeleted={fetchPlayers}
+                      />
                     </div>
-                  </td>
-                </tr>
-              )}
+                  ),
+                },
+              ]}
+              rows={players}
+              loading={loading}
+              searchable={false}
+              sortable={false}
+              filterable={false}
+              pagination={false}
+              exportable
+              columnVisibility
+              refreshable
+              onRefresh={fetchPlayers}
+              emptyTitle="No players found"
+              emptyDescription="Player applications will appear here."
             />
 
-            <Pagination pagination={pagination} setPage={setPage} />
+            <Pagination pagination={pagination} setPage={setPage} loading={loading} label="players" />
           </>
         )}
       </Panel>
@@ -2242,6 +3418,7 @@ export function OrganizerMatches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const fetchMatches = async () => {
     try {
@@ -2265,8 +3442,9 @@ export function OrganizerMatches() {
     const teamA = match.teamA?.name || "";
     const teamB = match.teamB?.name || "";
     const tournament = match.tournament?.name || "";
+    const title = match.title || "";
 
-    return `${teamA} ${teamB} ${tournament}`
+    return `${title} ${teamA} ${teamB} ${tournament}`
       .toLowerCase()
       .includes(search.toLowerCase());
   });
@@ -2275,11 +3453,26 @@ export function OrganizerMatches() {
     matches.filter((match) => String(match.status).toLowerCase() === status)
       .length;
 
+  const handleMatchCreated = async () => {
+    setShowCreateModal(false);
+    await fetchMatches();
+  };
+
   return (
     <div className="w-full min-w-0">
       <PageHeader
         title="Matches"
-        description="View fixtures and manage tournament matches."
+        description="Create fixtures, assign scorers and manage tournament matches."
+        action={
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-5 py-3 text-sm font-bold text-[#071b16] transition hover:bg-lime/90 sm:w-auto"
+          >
+            <Plus size={18} />
+            Create Match
+          </button>
+        }
       />
 
       <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
@@ -2288,16 +3481,19 @@ export function OrganizerMatches() {
           value={matches.length}
           icon={CalendarDays}
         />
+
         <StatCard
           title="Upcoming"
           value={countByStatus("upcoming")}
           icon={Trophy}
         />
+
         <StatCard
           title="Live Matches"
           value={countByStatus("live")}
           icon={TrendingUp}
         />
+
         <StatCard
           title="Completed"
           value={countByStatus("completed")}
@@ -2309,8 +3505,8 @@ export function OrganizerMatches() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search matches or teams..."
-          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none sm:max-w-xs sm:py-2.5"
+          placeholder="Search matches, teams or tournaments..."
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-[#050817] px-4 py-3 text-sm outline-none focus:border-lime/50 sm:max-w-xs sm:py-2.5"
         />
       </div>
 
@@ -2324,18 +3520,30 @@ export function OrganizerMatches() {
             columns={["Match", "Tournament", "Overs", "Scorer", "Status"]}
             rows={filteredMatches}
             emptyTitle="No matches found"
-            emptyDescription="Matches created for your tournaments will appear here."
+            emptyDescription="Create a match to add fixtures to your tournaments."
             renderRow={(match) => (
               <tr key={match._id}>
                 <td className="px-5 py-4 font-semibold">
-                  {match.teamA?.name || "Team A"} vs{" "}
-                  {match.teamB?.name || "Team B"}
+                  {match.title ||
+                    `${match.teamA?.name || "Team A"} vs ${
+                      match.teamB?.name || "Team B"
+                    }`}
+                  <p className="mt-1 text-xs font-normal text-emerald-100/40">
+                    {match.teamA?.name || "Team A"} vs{" "}
+                    {match.teamB?.name || "Team B"}
+                  </p>
                 </td>
+
                 <td className="px-5 py-4">{match.tournament?.name || "—"}</td>
-                <td className="px-5 py-4">{match.overs ?? "—"}</td>
+
+                <td className="px-5 py-4">
+                  {match.oversPerInnings ?? match.overs ?? "—"}
+                </td>
+
                 <td className="px-5 py-4">
                   {match.scorer?.name || "Not assigned"}
                 </td>
+
                 <td className="px-5 py-4">
                   <StatusBadge status={match.status} />
                 </td>
@@ -2344,6 +3552,44 @@ export function OrganizerMatches() {
           />
         )}
       </Panel>
+
+      {/* Create Match Modal */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-3 sm:p-5"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCreateModal(false);
+            }
+          }}
+        >
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d192c] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 p-5">
+              <div>
+                <h2 className="text-xl font-bold">Create Tournament Match</h2>
+                <p className="mt-1 text-xs text-emerald-100/50">
+                  Configure teams, players and scorer.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg border border-white/10 p-2 text-white/70 hover:bg-white/10"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-5">
+              <MatchAdminForm
+                onCreated={handleMatchCreated}
+                onCancel={() => setShowCreateModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

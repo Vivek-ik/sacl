@@ -19,7 +19,7 @@ import { CTA } from "./WebsiteLayout";
 function Eyebrow({ children }) {
   return (
     <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-blue-400">
-      — {children}
+       {children}
     </p>
   );
 }

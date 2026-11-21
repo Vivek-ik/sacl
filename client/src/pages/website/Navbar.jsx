@@ -74,7 +74,7 @@ export default function Navbar() {
 
       {/* Mobile Navigation */}
       {menuOpen && (
-        <nav className="border-t border-white/10 bg-[#102a24] px-5 py-4 lg:hidden">
+        <nav className="border-t border-white/10 bg-[#0b1629]/95 px-5 py-4 lg:hidden">
           <div className="mx-auto grid max-w-7xl gap-1">
             {navLinks.map((link) => (
               <NavLink

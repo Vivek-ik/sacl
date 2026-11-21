@@ -100,14 +100,14 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       {/* Role-based home dashboard */}
-      {/* <Route
-        path="/"
+      <Route
+        path="/overview"
         element={
           <Protected>
             <HomeDashboard />
           </Protected>
         }
-      /> */}
+      />
       {/* Super Admin */}
       <Route
         path="/super-admin/organizations"
@@ -177,7 +177,7 @@ function AppRoutes() {
       <Route
         path="/contact-leads"
         element={
-          <Protected roles={["org_admin"]}>
+          <Protected roles={["super_admin", "org_admin"]}>
             <ContactLeads />
           </Protected>
         }
@@ -218,7 +218,7 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <Protected roles={["admin", "org_admin"]}>
+          <Protected roles={["super_admin", "admin", "org_admin"]}>
             <Admin />
           </Protected>
         }

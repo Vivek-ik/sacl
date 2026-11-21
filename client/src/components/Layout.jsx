@@ -21,7 +21,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 
 const superAdminLinks = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/super-admin/organizations", label: "Organizations", icon: Building2 },
   { to: "/super-admin/users", label: "All Users", icon: Users },
   { to: "/super-admin/subscriptions", label: "Subscriptions", icon: Wallet },
@@ -29,11 +29,10 @@ const superAdminLinks = [
   { to: "/super-admin/plans", label: "Plans & Pricing", icon: Receipt },
   { to: "/contact-leads", label: "Contact Leads", icon: LucideAxis3D },
   { to: "/profile", label: "My Profile", icon: UserRound },
-  { to: "/contact-leads", label: "Contact Leads", icon: LucideAxis3D },
 ];
 
 const organizerLinks = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/organizer/tournaments", label: "Tournaments", icon: Trophy },
   { to: "/organizer/teams", label: "Teams", icon: ShieldCheck },
   { to: "/organizer/players", label: "Players", icon: Users },
@@ -45,7 +44,7 @@ const organizerLinks = [
 ];
 
 const legacyAdminLinks = [
-  { to: "/", label: "Overview", icon: Trophy },
+  { to: "/overview", label: "Overview", icon: Trophy },
   { to: "/admin", label: "Approvals", icon: ShieldCheck },
   { to: "/registration", label: "Registrations", icon: Users },
   { to: "/admin/matches", label: "Manage Matches", icon: CalendarDays },
@@ -56,7 +55,7 @@ const legacyAdminLinks = [
 ];
 
 const teamOwnerLinks = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/team", label: "My Team", icon: ShieldCheck },
   { to: "/auction", label: "Auction", icon: Gavel },
@@ -65,13 +64,13 @@ const teamOwnerLinks = [
 ];
 
 const scorerLinks = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/scorer", label: "Scoring Dashboard", icon: Radio },
   { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
 const playerLinks = [
-  { to: "/", label: "Overview", icon: LayoutDashboard },
+  { to: "/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/registration", label: "My Registration", icon: UserRound },
   { to: "/profile", label: "My Profile", icon: UserRound },
 ];

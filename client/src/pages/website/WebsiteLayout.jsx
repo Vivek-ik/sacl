@@ -128,7 +128,7 @@ export function Intro({ tag, title, desc }) {
     <section className="bg-cream py-16 md:p-20">
       <div className="wrap">
         <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-leaf">
-          — {tag}
+           {tag}
         </p>
         <h1 className="max-w-4xl text-4xl font-black leading-tight text-forest md:text-6xl">
           {title}

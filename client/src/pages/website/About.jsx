@@ -55,7 +55,7 @@ export default function About() {
         <div className="wrap grid items-center gap-12 md:grid-cols-2">
           <div>
             <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-blue-600">
-              — Who We Are
+               Who We Are
             </p>
 
             <h2 className="text-3xl font-black leading-tight md:text-5xl">
@@ -121,7 +121,7 @@ export default function About() {
         <div className="wrap">
           <div className="max-w-2xl">
             <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-blue-600">
-              — What We Do
+               What We Do
             </p>
 
             <h2 className="text-3xl font-black text-slate-900 md:text-5xl">
@@ -216,7 +216,7 @@ export default function About() {
         <div className="wrap">
           <div className="max-w-3xl">
             <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-blue-400">
-              — Our Network
+               Our Network
             </p>
 
             <h2 className="text-3xl font-black md:text-5xl">
@@ -292,7 +292,7 @@ export default function About() {
         <div className="wrap grid items-start gap-10 md:grid-cols-2">
           <div>
             <p className="mb-4 text-xs font-extrabold uppercase tracking-[.22em] text-blue-600">
-              — Associated Business Details
+               Associated Business Details
             </p>
 
             <h2 className="text-3xl font-black text-slate-900 md:text-5xl">

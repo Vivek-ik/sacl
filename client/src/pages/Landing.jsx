@@ -247,9 +247,9 @@ const getDashboardPath = (role) => {
     player: "/registration",
     team_owner: "/team",
     auctioneer: "/auction",
-    admin: "/admin",
-    org_admin: "/admin",
-    super_admin: "/admin",
+    admin: "/overview",
+    org_admin: "/overview",
+    super_admin: "/overview",
   };
 
   return routes[role] || "/login";
@@ -264,7 +264,7 @@ export default function Landing() {
 
   const current = portalContent[activeTab];
 
-  const dashboardPath = user ? getDashboardPath(user.role) : "/login";
+  const dashboardPath = getDashboardPath(user?.role);
 
   const handleRegistration = () => {
     if (user) {

@@ -1,4 +1,4 @@
-# SACL 2.0 — MERN Cricket Auction Platform
+# SACL 2.0  MERN Cricket Auction Platform
 
 A full-stack starter application for cricket tournament registration, team/player approvals, and real-time player auctions.
 
