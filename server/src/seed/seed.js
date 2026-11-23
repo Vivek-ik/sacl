@@ -227,8 +227,7 @@ async function main() {
   );
 
   // 6. Create/reuse the tournament.
-  // Assumed Tournament fields: name, organization, status,
-  // auctionStatus, squadSize, teamLimit, purseTotal.
+  // The organization admin is recorded as the creator.
   const tournament = await Tournament.findOneAndUpdate(
     {
       organization: organization._id,
@@ -236,6 +235,9 @@ async function main() {
     },
     {
       $set: {
+        name: DEMO.tournamentName,
+        organization: organization._id,
+        createdBy: orgAdmin._id, // Correct creator
         status: "active",
         auctionStatus: "pending",
         squadSize: 13,
@@ -243,9 +245,12 @@ async function main() {
         purseTotal: 50000,
       },
     },
-    { upsert: true, new: true, runValidators: true },
+    {
+      upsert: true,
+      new: true,
+      runValidators: true,
+    },
   );
-
   // 7. Create auctioneer and scorer.
   const auctioneer = await upsertUser({
     name: "Demo Auctioneer",
@@ -297,6 +302,7 @@ async function main() {
           approvalStatus: "approved",
           purseTotal: 50000,
           purseRemaining: 50000,
+          squad: [],
         },
       },
       { upsert: true, new: true, runValidators: true },
@@ -345,17 +351,27 @@ async function main() {
         { upsert: true, new: true, runValidators: true },
       );
 
-      squad.push(player._id);
+      // squad.push(player._id);
       allPlayers.push(player);
     }
 
-    team.squad = squad;
+    // team.squad = squad;
     await team.save();
   }
 
   // 9. Create one scheduled match.
   const teamA = teams[0];
   const teamB = teams[1];
+
+  const teamAPlayers = allPlayers
+    .filter((player) => String(player.preferredTeam) === String(teamA._id))
+    .slice(0, 11)
+    .map((player) => player._id);
+
+  const teamBPlayers = allPlayers
+    .filter((player) => String(player.preferredTeam) === String(teamB._id))
+    .slice(0, 11)
+    .map((player) => player._id);
 
   const match = await Match.findOneAndUpdate(
     {
@@ -369,8 +385,8 @@ async function main() {
         teamB: teamB._id,
         organization: organization._id,
         tournament: tournament._id,
-        teamAPlayers: teamA.squad.slice(0, 11),
-        teamBPlayers: teamB.squad.slice(0, 11),
+        teamAPlayers,
+        teamBPlayers,
         oversPerInnings: 10,
         ballsPerOver: 6,
         scorer: scorer._id,

@@ -520,7 +520,8 @@ export default function Auction() {
 
               {isRunning && (
                 <p className="mt-2 text-xs text-emerald-100/40">
-                  Timer resets to 45 seconds after every valid bid.
+                  Timer resets to {state?.timerSeconds || 45} seconds after
+                  every valid bid.{" "}
                 </p>
               )}
 

@@ -3,6 +3,7 @@ import { protect, allowRoles } from "../middleware/auth.js";
 import { getAuctionSnapshot } from "../services/auctionService.js";
 import Auction from "../models/Auction.js";
 import Player from "../models/Player.js";
+import mongoose from "mongoose";
 
 const router = Router();
 
@@ -53,6 +54,32 @@ async function getAccessibleAuction(auctionId, user) {
   return auction;
 }
 
+
+// Public read-only state for one specific auction.
+// GET /api/auction/public/:auctionId/state
+router.get("/public/:auctionId/state", async (req, res, next) => {
+  try {
+    const { auctionId } = req.params;
+
+    if (!mongoose.isValidObjectId(auctionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid auction ID.",
+      });
+    }
+
+    const auction = await getAuctionSnapshot(auctionId);
+
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      success: true,
+      auction,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/:auctionId/state", protect, async (req, res, next) => {
   try {
     const auction = await getAccessibleAuction(req.params.auctionId, req.user);
@@ -78,7 +105,9 @@ router.get("/:auctionId/players", protect, async (req, res, next) => {
       approvalStatus: "approved",
       auctionStatus: "AVAILABLE",
     })
-      .select("fullName category role photo age battingStyle bowlingStyle approvalStatus auctionStatus")
+      .select(
+        "fullName category role photo age battingStyle bowlingStyle approvalStatus auctionStatus",
+      )
       .sort({ category: 1, fullName: 1 })
       .lean();
 

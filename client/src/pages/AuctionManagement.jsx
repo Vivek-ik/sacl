@@ -8,6 +8,14 @@ const MANAGER_ROLES = ["super_admin", "org_admin", "admin"];
 const dateLabel = (value) =>
   value ? new Date(value).toLocaleString() : "Not scheduled";
 
+const toLocalDateTimeInput = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
 export default function AuctionManagement() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -105,7 +113,7 @@ export default function AuctionManagement() {
         []
       ).map((item) => String(item._id || item)),
       scheduledAt: auction?.scheduledAt
-        ? new Date(auction.scheduledAt).toISOString().slice(0, 16)
+        ? toLocalDateTimeInput(auction.scheduledAt)
         : "",
       timerSeconds: auction?.timerSeconds || 45,
       minimumReservePerSlot: auction?.minimumReservePerSlot || 0,
@@ -164,6 +172,26 @@ export default function AuctionManagement() {
     navigate(
       `/dashboard/auctions/${row.auction._id}/tournament/${row.tournament._id}`,
     );
+  };
+
+  const publicAuctionUrl = (auctionId) =>
+    `${window.location.origin}/auction/live/${auctionId}`;
+
+  const watchLive = (auctionId) => {
+    window.open(publicAuctionUrl(auctionId), "_blank", "noopener,noreferrer");
+  };
+
+  const copyPublicLink = async (auctionId) => {
+    setError("");
+    setSuccess("");
+    try {
+      await navigator.clipboard.writeText(publicAuctionUrl(auctionId));
+      setSuccess("Public auction link copied.");
+    } catch {
+      setError(
+        "Unable to copy automatically. Open the live page and copy its URL.",
+      );
+    }
   };
 
   if (loading) {
@@ -335,6 +363,25 @@ export default function AuctionManagement() {
                       >
                         {auction ? "Edit / Assign" : "Configure"}
                       </button>
+                    )}
+
+                    {auction && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => watchLive(auction._id)}
+                          className="rounded-lg border border-lime/40 px-4 py-2.5 text-xs font-bold text-lime hover:bg-lime/10"
+                        >
+                          Watch Live
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyPublicLink(auction._id)}
+                          className="rounded-lg border border-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/5"
+                        >
+                          Copy Public Link
+                        </button>
+                      </>
                     )}
 
                     {auction && (

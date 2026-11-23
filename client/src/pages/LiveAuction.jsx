@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
   Activity,
@@ -67,29 +68,122 @@ function StatusPill({ status }) {
 }
 
 function EmptyAuction({ status }) {
+  const completed = status === "COMPLETED";
+
   return (
     <div className="flex min-h-[390px] flex-col items-center justify-center rounded-3xl border border-white/10 bg-[#0b1727] px-6 py-12 text-center">
       <div className="grid h-20 w-20 place-items-center rounded-3xl border border-lime-300/20 bg-lime-300/10 text-4xl">
         🏏
       </div>
+
       <p className="mt-6 text-xs font-black uppercase tracking-[0.28em] text-lime-300">
         Public auction room
       </p>
+
       <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
-        {status === "COMPLETED"
+        {completed
           ? "The auction has ended"
-          : "Waiting for the next player"}
+          : status === "PAUSED"
+            ? "Auction paused"
+            : "Waiting for auctioneer to start"}
       </h2>
+
       <p className="mt-3 max-w-md text-sm leading-6 text-white/45">
-        {status === "COMPLETED"
-          ? "The final auction status and player results will remain visible here."
-          : "This page updates automatically when the auctioneer brings a player into the auction."}
+        {completed
+          ? "The auction has ended. Final results will remain visible here."
+          : status === "PAUSED"
+            ? "The auctioneer will resume or close the current player."
+            : "The scheduled time has arrived. The auctioneer will manually start the first player. Stay here for live updates."}
+      </p>
+    </div>
+  );
+}
+
+function ScheduledAuction({ scheduledAt }) {
+  const [remaining, setRemaining] = useState(0);
+
+  useEffect(() => {
+    const update = () => {
+      setRemaining(
+        Math.max(
+          0,
+          Math.ceil((new Date(scheduledAt).getTime() - Date.now()) / 1000),
+        ),
+      );
+    };
+
+    update();
+
+    const interval = setInterval(update, 1000);
+
+    return () => clearInterval(interval);
+  }, [scheduledAt]);
+
+  const days = Math.floor(remaining / 86400);
+  const hours = Math.floor((remaining % 86400) / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+
+  return (
+    <div className="flex min-h-[550px] flex-col items-center justify-center rounded-3xl border border-lime-300/20 bg-[#0b1727] px-5 py-12 text-center">
+      <div className="grid h-24 w-24 place-items-center rounded-3xl border border-lime-300/20 bg-lime-300/10 text-5xl">
+        🏏
+      </div>
+
+      <p className="mt-7 text-xs font-black uppercase tracking-[0.3em] text-lime-300">
+        SACL Public Broadcast
+      </p>
+
+      <h2 className="mt-4 text-3xl font-black sm:text-4xl">
+        Auction starts soon!
+      </h2>
+
+      <p className="mt-3 max-w-lg text-sm leading-6 text-white/50">
+        The auction has been scheduled. Stay here and watch the live bidding
+        when the auction begins.
+      </p>
+
+      <div className="mt-8 grid grid-cols-4 gap-3">
+        {[
+          ["Days", days],
+          ["Hours", hours],
+          ["Minutes", minutes],
+          ["Seconds", seconds],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-5"
+          >
+            <p className="text-3xl font-black tabular-nums text-lime-300 sm:text-4xl">
+              {String(value).padStart(2, "0")}
+            </p>
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
+              {label}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-4">
+        <p className="text-xs text-white/40">Scheduled date and time</p>
+        <p className="mt-2 font-bold text-white">
+          {new Date(scheduledAt).toLocaleString("en-IN", {
+            dateStyle: "long",
+            timeStyle: "short",
+          })}
+        </p>
+      </div>
+
+      <p className="mt-6 text-xs text-emerald-200/40">
+        The auctioneer will manually start the auction.
       </p>
     </div>
   );
 }
 
 export default function LiveAuction() {
+  const { auctionId } = useParams();
+  const [clockNow, setClockNow] = useState(Date.now());
   const [auction, setAuction] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [connected, setConnected] = useState(false);
@@ -99,7 +193,14 @@ export default function LiveAuction() {
   const loadAuction = async () => {
     try {
       setError("");
-      const { data } = await api.get("/auction/state");
+      if (!auctionId) {
+        setError("Auction ID is missing from the public auction URL.");
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await api.get(`/auction/public/${auctionId}/state`);
+
       setAuction(data?.auction || data?.state || data);
     } catch (err) {
       setError(
@@ -110,6 +211,20 @@ export default function LiveAuction() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!auction?.scheduledAt) return;
+
+    const scheduledTime = new Date(auction.scheduledAt).getTime();
+
+    if (scheduledTime <= Date.now()) return;
+
+    const interval = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [auction?.scheduledAt]);
 
   useEffect(() => {
     loadAuction();
@@ -127,7 +242,19 @@ export default function LiveAuction() {
       reconnectionDelayMax: 5000,
     });
 
-    socket.on("connect", () => setConnected(true));
+    socket.on("connect", () => {
+      setConnected(true);
+
+      socket.emit("auction:join", { auctionId }, (response) => {
+        if (response?.success && response.state) {
+          setAuction(response.state);
+          setError("");
+          setLoading(false);
+        } else if (response && !response.success) {
+          setError(response.message || "Unable to join public auction.");
+        }
+      });
+    });
     socket.on("disconnect", () => setConnected(false));
     socket.on("connect_error", () => setConnected(false));
     socket.on("auction:state", (nextState) => {
@@ -143,11 +270,17 @@ export default function LiveAuction() {
 
     return () => {
       window.clearInterval(refreshId);
+      socket.emit("auction:leave", { auctionId });
       socket.disconnect();
     };
-  }, []);
+  }, [auctionId]);
 
   useEffect(() => {
+    if (auction?.status === "PAUSED") {
+      setSecondsLeft(Math.ceil(Number(auction.pausedRemainingMs || 0) / 1000));
+      return undefined;
+    }
+
     if (!auction?.endsAt || auction.status !== "RUNNING") {
       setSecondsLeft(0);
       return undefined;
@@ -163,9 +296,11 @@ export default function LiveAuction() {
     };
 
     updateTimer();
+
     const timerId = window.setInterval(updateTimer, 250);
+
     return () => window.clearInterval(timerId);
-  }, [auction?.endsAt, auction?.status]);
+  }, [auction?.endsAt, auction?.status, auction?.pausedRemainingMs]);
 
   const player = auction?.currentPlayer;
   const bids = useMemo(
@@ -173,6 +308,16 @@ export default function LiveAuction() {
     [auction?.bids],
   );
   const running = auction?.status === "RUNNING";
+  const paused = auction?.status === "PAUSED";
+
+  const scheduledAt = auction?.scheduledAt
+    ? new Date(auction.scheduledAt)
+    : null;
+
+  const beforeSchedule =
+    scheduledAt &&
+    scheduledAt.getTime() > clockNow &&
+    auction?.status !== "COMPLETED";
   const timerUrgent = running && secondsLeft <= 10;
 
   if (loading && !auction) {
@@ -243,7 +388,9 @@ export default function LiveAuction() {
 
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="min-w-0">
-            {player ? (
+            {beforeSchedule ? (
+              <ScheduledAuction scheduledAt={scheduledAt} />
+            ) : player ? (
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b1727]">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
                   <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/45">
@@ -324,13 +471,21 @@ export default function LiveAuction() {
                             timerUrgent ? "text-red-400" : "text-white"
                           }`}
                         >
-                          {running ? formatClock(secondsLeft) : "--:--"}
+                          {running || paused
+                            ? formatClock(secondsLeft)
+                            : "--:--"}{" "}
                         </p>
                       </div>
                       <div className="text-right">
                         <span className="text-xs text-white/35">Auction</span>
                         <p className="mt-1 text-sm font-bold">
-                          {running ? "Bidding open" : "Not running"}
+                          {running
+                            ? "Bidding open"
+                            : paused && secondsLeft > 0
+                              ? "Auction paused"
+                              : paused
+                                ? "Bidding time expired"
+                                : "Waiting for next player"}
                         </p>
                       </div>
                     </div>

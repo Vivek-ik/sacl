@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Trophy,
@@ -19,6 +19,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/api";
 
 const tabs = ["Overview", "Player", "Team Owner", "Auctioneer", "Admin"];
 
@@ -261,6 +262,43 @@ export default function Landing() {
 
   const [activeTab, setActiveTab] = useState("Overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [publicTournaments, setPublicTournaments] = useState([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(true);
+  const [tournamentsError, setTournamentsError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPublicTournaments = async () => {
+      try {
+        setTournamentsLoading(true);
+        setTournamentsError("");
+
+        // Expected response: { tournaments: [{ ..., auction: {...} }] }
+        const response = await api.get("/public/tournaments");
+        const data = response.data;
+        const list = Array.isArray(data)
+          ? data
+          : data?.tournaments || data?.data || [];
+
+        if (active) setPublicTournaments(Array.isArray(list) ? list : []);
+      } catch (error) {
+        if (active) {
+          setTournamentsError(
+            error.response?.data?.message ||
+              "Unable to load tournaments right now.",
+          );
+        }
+      } finally {
+        if (active) setTournamentsLoading(false);
+      }
+    };
+
+    loadPublicTournaments();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const current = portalContent[activeTab];
 
@@ -461,6 +499,155 @@ export default function Landing() {
             size={300}
             strokeWidth={1}
           />
+        </section>
+
+        {/* Public tournaments and auctions */}
+        <section className="mt-8 rounded-3xl border border-white/10 bg-[#111f33] p-5 sm:p-8">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
+                Discover competitions
+              </p>
+              <h2 className="mt-2 text-2xl font-black sm:text-3xl">
+                Tournaments & Live Auctions
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Explore tournaments, check auction schedules and watch live
+                player bidding.
+              </p>
+            </div>
+            <Link
+              to="/tournaments"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white transition hover:border-amber-400 hover:text-amber-400"
+            >
+              All tournaments <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          {tournamentsLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/5"
+                />
+              ))}
+            </div>
+          ) : tournamentsError ? (
+            <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
+              {tournamentsError}
+            </div>
+          ) : publicTournaments.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-10 text-center">
+              <Trophy className="mx-auto text-amber-400" size={32} />
+              <h3 className="mt-3 font-bold text-white">
+                No tournaments available yet
+              </h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Check back soon for upcoming tournaments and auctions.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {publicTournaments.map((tournament) => {
+                const auction = tournament.auction || null;
+                const status = auction?.status || "NOT_CREATED";
+                const isLive = status === "RUNNING";
+                const isCompleted = status === "COMPLETED";
+                const scheduledAt = auction?.scheduledAt
+                  ? new Date(auction.scheduledAt)
+                  : null;
+
+                const statusLabel =
+                  status === "RUNNING"
+                    ? "LIVE NOW"
+                    : status === "PAUSED"
+                      ? "PAUSED"
+                      : status === "COMPLETED"
+                        ? "COMPLETED"
+                        : scheduledAt
+                          ? "SCHEDULED"
+                          : auction
+                            ? "NOT STARTED"
+                            : "AUCTION NOT CREATED";
+
+                const statusClass = isLive
+                  ? "bg-red-400/15 text-red-300"
+                  : status === "PAUSED"
+                    ? "bg-amber-400/15 text-amber-300"
+                    : isCompleted
+                      ? "bg-white/10 text-slate-300"
+                      : "bg-blue-400/15 text-blue-300";
+
+                return (
+                  <article
+                    key={tournament._id}
+                    className="flex flex-col rounded-2xl border border-white/10 bg-[#192b42] p-5 transition hover:-translate-y-1 hover:border-amber-400/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-400">
+                        <Trophy size={22} />
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide ${statusClass}`}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-4 text-lg font-black text-white">
+                      {tournament.name || "Tournament"}
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {[tournament.season, tournament.organization?.name]
+                        .filter(Boolean)
+                        .join(" · ") || "WeKhiladi Tournament"}
+                    </p>
+
+                    <div className="mt-4 flex-1 space-y-2 border-t border-white/10 pt-4 text-xs text-slate-300">
+                      <p className="flex items-center gap-2">
+                        <Gavel size={14} className="text-amber-400" />
+                        {auction?.auctionName ||
+                          "Auction details not available"}
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <CalendarDays size={14} className="text-amber-400" />
+                        {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                          ? scheduledAt.toLocaleString()
+                          : "Auction date not announced"}
+                      </p>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Link
+                        to={`/tournaments/${tournament._id}`}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-400 hover:text-amber-400"
+                      >
+                        Tournament details
+                      </Link>
+                      {auction?._id && (
+                        <Link
+                          to={`/auction/live/${auction._id}`}
+                          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black ${
+                            isLive
+                              ? "bg-red-500 text-white hover:bg-red-400"
+                              : "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                          }`}
+                        >
+                          <Radio size={14} />
+                          {isLive
+                            ? "Watch Live"
+                            : isCompleted
+                              ? "View Auction"
+                              : "Auction Room"}
+                        </Link>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Role tabs */}
