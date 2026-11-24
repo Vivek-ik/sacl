@@ -60,6 +60,18 @@ export async function startPlayer(auctionId, playerId, userId) {
     );
   }
 
+  if (
+    auction.scheduledAt &&
+    new Date(auction.scheduledAt).getTime() > Date.now()
+  ) {
+    throw getError(
+      `Auction is scheduled for ${new Date(auction.scheduledAt).toLocaleString(
+        "en-IN",
+      )}. You cannot start it yet.`,
+      409,
+    );
+  }
+
   const player = await Player.findOne({
     _id: playerId,
     tournament: auction.tournament,
@@ -82,6 +94,7 @@ export async function startPlayer(auctionId, playerId, userId) {
   auction.currentBid = 0;
   auction.highestBidTeam = null;
   auction.bids = [];
+  auction.pausedRemainingMs = 0;
   auction.startedAt = new Date();
   auction.endsAt = new Date(Date.now() + getTimerSeconds(auction) * 1000);
   auction.updatedBy = userId;
@@ -310,10 +323,10 @@ export async function closeCurrentPlayer(auctionId, sold, userId) {
   auction.highestBidTeam = null;
   auction.bids = [];
   auction.endsAt = null;
+  auction.pausedRemainingMs = 0;
   auction.updatedBy = userId;
 
   await auction.save();
-
   return getAuctionSnapshot(auctionId);
 }
 

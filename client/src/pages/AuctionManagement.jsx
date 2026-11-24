@@ -5,8 +5,54 @@ import { useAuth } from "../context/AuthContext";
 
 const MANAGER_ROLES = ["super_admin", "org_admin", "admin"];
 
+const AUCTION_FORMATS = [
+  {
+    value: "LIVE_BIDDING",
+    label: "Live Open Bidding",
+    description:
+      "Auctioneer starts players, teams bid, and the auctioneer marks Sold or Unsold.",
+  },
+  {
+    value: "SNAKE_DRAFT",
+    label: "Snake Draft",
+    description:
+      "Teams select players in turns. The selection order reverses every round.",
+  },
+  {
+    value: "DIRECT_SELECTION",
+    label: "Direct Selection",
+    description: "Approved team owners can directly select available players.",
+  },
+];
+
 const dateLabel = (value) =>
   value ? new Date(value).toLocaleString() : "Not scheduled";
+
+const toLocalDateTimeInput = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+
+  return local.toISOString().slice(0, 16);
+};
+
+const initialForm = {
+  tournamentId: "",
+  auctionName: "",
+  auctioneerIds: [],
+  scheduledAt: "",
+  timerSeconds: 45,
+  minimumReservePerSlot: 500,
+  auctionFormat: "LIVE_BIDDING",
+  selectionPrice: 500,
+};
+
+const formatPoints = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function AuctionManagement() {
   const { user } = useAuth();
@@ -17,6 +63,7 @@ export default function AuctionManagement() {
   const isTeamOwner = user?.role === "team_owner";
 
   const [rows, setRows] = useState([]);
+
   const [options, setOptions] = useState({
     tournaments: [],
     auctioneers: [],
@@ -24,18 +71,17 @@ export default function AuctionManagement() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
   const [showForm, setShowForm] = useState(false);
 
-  const [form, setForm] = useState({
-    tournamentId: "",
-    auctionName: "",
-    auctioneerIds: [],
-    scheduledAt: "",
-    timerSeconds: 45,
-    minimumReservePerSlot: 0,
-  });
+  const [form, setForm] = useState(initialForm);
+
+  const selectedFormat = AUCTION_FORMATS.find(
+    (item) => item.value === form.auctionFormat,
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,10 +114,13 @@ export default function AuctionManagement() {
   const stats = useMemo(
     () => ({
       total: rows.filter((row) => row.auction).length,
+
       live: rows.filter((row) => row.auction?.status === "RUNNING").length,
+
       scheduled: rows.filter(
         (row) => row.auction?.status === "IDLE" && row.auction?.scheduledAt,
       ).length,
+
       completed: rows.filter((row) => row.auction?.status === "COMPLETED")
         .length,
     }),
@@ -79,14 +128,7 @@ export default function AuctionManagement() {
   );
 
   const openCreate = () => {
-    setForm({
-      tournamentId: "",
-      auctionName: "",
-      auctioneerIds: [],
-      scheduledAt: "",
-      timerSeconds: 45,
-      minimumReservePerSlot: 0,
-    });
+    setForm({ ...initialForm });
 
     setError("");
     setSuccess("");
@@ -98,17 +140,26 @@ export default function AuctionManagement() {
 
     setForm({
       tournamentId: row.tournament._id,
+
       auctionName: auction?.auctionName || `${row.tournament.name} Auction`,
+
       auctioneerIds: (
         auction?.assignedAuctioneers ||
         row.tournament.auctioneers ||
         []
       ).map((item) => String(item._id || item)),
+
       scheduledAt: auction?.scheduledAt
-        ? new Date(auction.scheduledAt).toISOString().slice(0, 16)
+        ? toLocalDateTimeInput(auction.scheduledAt)
         : "",
+
       timerSeconds: auction?.timerSeconds || 45,
-      minimumReservePerSlot: auction?.minimumReservePerSlot || 0,
+
+      minimumReservePerSlot: auction?.minimumReservePerSlot ?? 500,
+
+      auctionFormat: auction?.auctionFormat || "LIVE_BIDDING",
+
+      selectionPrice: auction?.selectionPrice ?? 500,
     });
 
     setError("");
@@ -124,6 +175,39 @@ export default function AuctionManagement() {
       return;
     }
 
+    if (
+      !["LIVE_BIDDING", "SNAKE_DRAFT", "DIRECT_SELECTION"].includes(
+        form.auctionFormat,
+      )
+    ) {
+      setError("Select a valid auction format.");
+      return;
+    }
+
+    const selectionPrice = Number(form.selectionPrice);
+
+    if (!Number.isSafeInteger(selectionPrice) || selectionPrice < 0) {
+      setError("Selection price must be a valid non-negative whole number.");
+      return;
+    }
+
+    const timerSeconds = Number(form.timerSeconds);
+    const minimumReservePerSlot = Number(form.minimumReservePerSlot);
+
+    if (
+      !Number.isInteger(timerSeconds) ||
+      timerSeconds < 5 ||
+      timerSeconds > 300
+    ) {
+      setError("Bid timer must be between 5 and 300 seconds.");
+      return;
+    }
+
+    if (!Number.isFinite(minimumReservePerSlot) || minimumReservePerSlot < 0) {
+      setError("Reserve per slot cannot be negative.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
@@ -131,14 +215,20 @@ export default function AuctionManagement() {
     try {
       await api.post("/auction-management", {
         ...form,
-        timerSeconds: Number(form.timerSeconds),
-        minimumReservePerSlot: Number(form.minimumReservePerSlot),
+
+        timerSeconds,
+
+        minimumReservePerSlot,
+
+        selectionPrice,
+
         scheduledAt: form.scheduledAt
           ? new Date(form.scheduledAt).toISOString()
           : null,
       });
 
       setShowForm(false);
+
       setSuccess("Auction configuration saved successfully.");
 
       await load();
@@ -152,6 +242,7 @@ export default function AuctionManagement() {
   const toggleAuctioneer = (id) => {
     setForm((current) => ({
       ...current,
+
       auctioneerIds: current.auctioneerIds.includes(id)
         ? current.auctioneerIds.filter((item) => item !== id)
         : [...current.auctioneerIds, id],
@@ -166,6 +257,32 @@ export default function AuctionManagement() {
     );
   };
 
+  const publicAuctionUrl = (auctionId) =>
+    `${window.location.origin}/auction/live/${auctionId}`;
+
+  const watchLive = (auctionId) => {
+    window.open(publicAuctionUrl(auctionId), "_blank", "noopener,noreferrer");
+  };
+
+  const copyPublicLink = async (auctionId) => {
+    setError("");
+    setSuccess("");
+
+    try {
+      await navigator.clipboard.writeText(publicAuctionUrl(auctionId));
+
+      setSuccess("Public auction link copied.");
+    } catch {
+      setError(
+        "Unable to copy automatically. Open the live page and copy its URL.",
+      );
+    }
+  };
+
+  const formatLabel = (format) =>
+    AUCTION_FORMATS.find((item) => item.value === format)?.label ||
+    "Live Open Bidding";
+
   if (loading) {
     return (
       <div className="grid min-h-[300px] place-items-center">
@@ -176,6 +293,8 @@ export default function AuctionManagement() {
 
   return (
     <div className="space-y-6 text-white">
+      {/* PAGE HEADER */}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[.2em] text-lime">
@@ -185,8 +304,8 @@ export default function AuctionManagement() {
           <h1 className="mt-2 text-3xl font-black">Auction Management</h1>
 
           <p className="mt-2 text-sm text-emerald-100/50">
-            Create tournament auctions, assign auctioneers and open live auction
-            rooms.
+            Create tournament auctions, choose auction formats, assign
+            auctioneers and open live auction rooms.
           </p>
         </div>
 
@@ -200,6 +319,8 @@ export default function AuctionManagement() {
         )}
       </div>
 
+      {/* ALERTS */}
+
       {error && (
         <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
           {error}
@@ -211,6 +332,8 @@ export default function AuctionManagement() {
           {success}
         </div>
       )}
+
+      {/* STATS */}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -224,15 +347,19 @@ export default function AuctionManagement() {
             className="rounded-2xl border border-white/10 bg-panel p-5"
           >
             <p className="text-sm text-emerald-100/50">{label}</p>
+
             <p className="mt-2 text-3xl font-black">{value}</p>
           </div>
         ))}
       </div>
 
+      {/* AUCTION LIST */}
+
       <section className="overflow-hidden rounded-2xl border border-white/10 bg-panel">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-5">
           <div>
             <h2 className="font-black">Tournament auctions</h2>
+
             <p className="mt-1 text-xs text-emerald-100/40">
               {isAuctioneer
                 ? "Auctions assigned to you"
@@ -253,7 +380,9 @@ export default function AuctionManagement() {
         {rows.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-4xl">🏏</div>
+
             <h3 className="mt-3 font-bold">No tournament auctions found</h3>
+
             <p className="mt-1 text-sm text-emerald-100/40">
               {canManage
                 ? "Create an auction for one of your tournaments to get started."
@@ -279,6 +408,8 @@ export default function AuctionManagement() {
                 auction?.assignedAuctioneers ||
                 row.tournament.auctioneers ||
                 [];
+
+              const format = auction?.auctionFormat || "LIVE_BIDDING";
 
               return (
                 <div
@@ -309,6 +440,15 @@ export default function AuctionManagement() {
                         Auction: {auction?.auctionName || "Not created"}
                       </span>
 
+                      <span>Format: {formatLabel(format)}</span>
+
+                      {auction && format !== "LIVE_BIDDING" && (
+                        <span>
+                          Selection price:{" "}
+                          {formatPoints(auction.selectionPrice ?? 500)}
+                        </span>
+                      )}
+
                       <span>
                         Auctioneer:{" "}
                         {assignedAuctioneers
@@ -324,6 +464,8 @@ export default function AuctionManagement() {
                     </div>
                   </div>
 
+                  {/* ACTIONS */}
+
                   <div className="flex flex-wrap gap-2">
                     {canManage && (
                       <button
@@ -335,6 +477,26 @@ export default function AuctionManagement() {
                       >
                         {auction ? "Edit / Assign" : "Configure"}
                       </button>
+                    )}
+
+                    {auction && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => watchLive(auction._id)}
+                          className="rounded-lg border border-lime/40 px-4 py-2.5 text-xs font-bold text-lime hover:bg-lime/10"
+                        >
+                          Watch Live
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => copyPublicLink(auction._id)}
+                          className="rounded-lg border border-white/10 px-4 py-2.5 text-xs font-bold hover:bg-white/5"
+                        >
+                          Copy Public Link
+                        </button>
+                      </>
                     )}
 
                     {auction && (
@@ -357,6 +519,8 @@ export default function AuctionManagement() {
         )}
       </section>
 
+      {/* CREATE / EDIT MODAL */}
+
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4"
@@ -370,11 +534,14 @@ export default function AuctionManagement() {
             onSubmit={submit}
             className="my-8 w-full max-w-2xl space-y-5 rounded-2xl border border-white/10 bg-[#101c19] p-6 shadow-2xl"
           >
+            {/* MODAL HEADER */}
+
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-lime">
                   Auction setup
                 </p>
+
                 <h2 className="mt-1 text-2xl font-black">
                   Create / Configure Auction
                 </h2>
@@ -389,6 +556,8 @@ export default function AuctionManagement() {
               </button>
             </div>
 
+            {/* TOURNAMENT */}
+
             <div>
               <label className="mb-2 block text-xs font-bold text-emerald-100/60">
                 Tournament *
@@ -399,6 +568,7 @@ export default function AuctionManagement() {
                 value={form.tournamentId}
                 onChange={(event) => {
                   const tournamentId = event.target.value;
+
                   const tournament = options.tournaments.find(
                     (item) => item._id === tournamentId,
                   );
@@ -411,7 +581,13 @@ export default function AuctionManagement() {
                       `${tournament?.name || "Tournament"} Auction`,
                   }));
                 }}
-                className="w-full rounded-xl border border-white/10 bg-[#172722] px-4 py-3 text-sm outline-none focus:border-lime"
+                disabled={Boolean(
+                  rows.find(
+                    (row) =>
+                      row.tournament._id === form.tournamentId && row.auction,
+                  ),
+                )}
+                className="w-full rounded-xl border border-white/10 bg-[#172722] px-4 py-3 text-sm outline-none focus:border-lime disabled:opacity-60"
               >
                 <option value="">Select tournament</option>
 
@@ -423,6 +599,8 @@ export default function AuctionManagement() {
                 ))}
               </select>
             </div>
+
+            {/* AUCTION NAME */}
 
             <div>
               <label className="mb-2 block text-xs font-bold text-emerald-100/60">
@@ -441,6 +619,93 @@ export default function AuctionManagement() {
                 className="w-full rounded-xl border border-white/10 bg-[#172722] px-4 py-3 text-sm outline-none focus:border-lime"
               />
             </div>
+
+            {/* AUCTION FORMAT */}
+
+            <div>
+              <label className="mb-2 block text-xs font-bold text-emerald-100/60">
+                Auction Format *
+              </label>
+
+              <div className="grid gap-3">
+                {AUCTION_FORMATS.map((format) => {
+                  const selected = form.auctionFormat === format.value;
+
+                  return (
+                    <button
+                      type="button"
+                      key={format.value}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          auctionFormat: format.value,
+                        }))
+                      }
+                      className={`rounded-xl border p-4 text-left transition ${
+                        selected
+                          ? "border-lime bg-lime/10"
+                          : "border-white/10 bg-[#172722] hover:border-white/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-bold">{format.label}</span>
+
+                        <span
+                          className={`h-4 w-4 rounded-full border ${
+                            selected ? "border-lime bg-lime" : "border-white/30"
+                          }`}
+                        />
+                      </div>
+
+                      <p className="mt-2 text-xs leading-relaxed text-emerald-100/45">
+                        {format.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* FIXED SELECTION PRICE */}
+
+            {form.auctionFormat !== "LIVE_BIDDING" && (
+              <div className="rounded-xl border border-lime/20 bg-lime/5 p-4">
+                <label className="mb-2 block text-xs font-bold text-lime">
+                  Fixed Player Selection Price (₹) *
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={form.selectionPrice}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      selectionPrice: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#172722] px-4 py-3 text-lg font-black outline-none focus:border-lime"
+                />
+
+                <p className="mt-2 text-xs text-emerald-100/50">
+                  Every player selected through {selectedFormat?.label} will
+                  deduct{" "}
+                  <strong className="text-lime">
+                    {formatPoints(form.selectionPrice)}
+                  </strong>{" "}
+                  from the selecting team's remaining purse.
+                </p>
+
+                <p className="mt-2 text-[11px] text-emerald-100/35">
+                  Example: A team with ₹50,000 purse selecting 3 players at ₹500
+                  each will have ₹48,500 remaining.
+                </p>
+              </div>
+            )}
+
+            {/* AUCTIONEERS */}
 
             <div>
               <label className="mb-2 block text-xs font-bold text-emerald-100/60">
@@ -467,6 +732,7 @@ export default function AuctionManagement() {
 
                       <span className="text-sm">
                         {auctioneer.name}
+
                         <span className="ml-2 text-xs text-white/40">
                           {auctioneer.email}
                         </span>
@@ -487,6 +753,8 @@ export default function AuctionManagement() {
               </p>
             </div>
 
+            {/* TIMER / RESERVE / SCHEDULE */}
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-2 block text-xs font-bold text-emerald-100/60">
@@ -499,14 +767,21 @@ export default function AuctionManagement() {
                   max="300"
                   required
                   value={form.timerSeconds}
+                  disabled={form.auctionFormat !== "LIVE_BIDDING"}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
                       timerSeconds: event.target.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#172722] px-3 py-3 text-sm"
+                  className="w-full rounded-xl border border-white/10 bg-[#172722] px-3 py-3 text-sm disabled:opacity-40"
                 />
+
+                {form.auctionFormat !== "LIVE_BIDDING" && (
+                  <p className="mt-1 text-[10px] text-white/35">
+                    Used for live bidding only.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -519,13 +794,14 @@ export default function AuctionManagement() {
                   min="0"
                   required
                   value={form.minimumReservePerSlot}
+                  disabled={form.auctionFormat !== "LIVE_BIDDING"}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
                       minimumReservePerSlot: event.target.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-white/10 bg-[#172722] px-3 py-3 text-sm"
+                  className="w-full rounded-xl border border-white/10 bg-[#172722] px-3 py-3 text-sm disabled:opacity-40"
                 />
               </div>
 
@@ -548,11 +824,51 @@ export default function AuctionManagement() {
               </div>
             </div>
 
+            {/* FORMAT SUMMARY */}
+
+            <div className="rounded-xl border border-white/10 bg-[#172722] p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-100/40">
+                Configuration summary
+              </p>
+
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-emerald-100/50">Format</span>
+
+                  <span className="font-bold">{selectedFormat?.label}</span>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                  <span className="text-emerald-100/50">
+                    Player selection charge
+                  </span>
+
+                  <span className="font-bold text-lime">
+                    {form.auctionFormat === "LIVE_BIDDING"
+                      ? "Based on winning bid"
+                      : formatPoints(form.selectionPrice)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                  <span className="text-emerald-100/50">
+                    Assigned auctioneers
+                  </span>
+
+                  <span className="font-bold">{form.auctioneerIds.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* FORM ERROR */}
+
             {error && (
               <p className="rounded-lg bg-red-400/10 p-3 text-sm text-red-200">
                 {error}
               </p>
             )}
+
+            {/* FORM ACTIONS */}
 
             <div className="flex justify-end gap-2 border-t border-white/10 pt-4">
               <button

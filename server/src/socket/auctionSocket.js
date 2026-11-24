@@ -223,8 +223,18 @@ export function initializeAuctionSocket(httpServer) {
      */
     socket.on("auction:join", async ({ auctionId } = {}, ack = () => {}) => {
       try {
-        await getAccessibleAuction(auctionId, socket.user);
+        if (!mongoose.isValidObjectId(auctionId)) {
+          throw getError("Invalid auction ID.", 400);
+        }
 
+        const auction = await Auction.findById(auctionId);
+
+        if (!auction) {
+          throw getError("Auction not found.", 404);
+        }
+
+        // Authenticated users can join the public read-only room.
+        // Anonymous users can also join, but cannot perform any actions.
         const room = auctionRoom(auctionId);
 
         // Leave any previously joined auction room.

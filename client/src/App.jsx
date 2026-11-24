@@ -205,6 +205,7 @@ function AppRoutes() {
           </Protected>
         }
       />
+      {/* testing in staging */}
       <Route
         path="/auction"
         element={
@@ -225,6 +226,8 @@ function AppRoutes() {
         path="/dashboard/auctions/:auctionId/tournament/:tournamentId"
         element={<Auction />}
       />
+      {/* Public read-only auction screen */}
+      <Route path="/auction/live/:auctionId" element={<LiveAuction />} />
       <Route
         path="/team"
         element={
