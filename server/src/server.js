@@ -41,6 +41,7 @@ import teamPaymentRoutes from "./routes/teamPaymentRoutes.js";
 import adminPaymentRoutes from "./routes/adminPayment.routes.js";
 
 import auctionManagementRoutes from "./routes/auctionManagementRoutes.js";
+import auctionFormatRoutes from "./routes/auctionFormatRoutes.js";
 
 import { notFound, errorHandler } from "./middleware/error.js";
 
@@ -117,6 +118,7 @@ app.use("/api/users", profileRoutes);
 app.use("/api/contact", contactRoutes);
 
 app.use("/api/auction-management", auctionManagementRoutes);
+app.use("/api/auction-formats", auctionFormatRoutes);
 
 // Error handling
 app.use(notFound);

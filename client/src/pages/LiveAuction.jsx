@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import {
@@ -10,12 +10,18 @@ import {
   Users,
   Wifi,
   WifiOff,
+  IndianRupee,
+  CheckCircle2,
 } from "lucide-react";
 import { api } from "../lib/api";
 
 const SOCKET_URL = (() => {
-  if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL;
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+
   const apiUrl = import.meta.env.VITE_API_URL;
+
   if (apiUrl) {
     try {
       return new URL(apiUrl).origin;
@@ -23,6 +29,7 @@ const SOCKET_URL = (() => {
       // Fall through to the current site origin.
     }
   }
+
   return typeof window !== "undefined" ? window.location.origin : undefined;
 })();
 
@@ -34,6 +41,9 @@ const formatClock = (seconds) =>
     Math.max(0, seconds) % 60,
   ).padStart(2, "0")}`;
 
+const formatSelectionPrice = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
 const getPlayerInitials = (name = "") =>
   name
     .trim()
@@ -42,6 +52,34 @@ const getPlayerInitials = (name = "") =>
     .map((part) => part[0])
     .join("")
     .toUpperCase() || "🏏";
+
+const getAuctionFormat = (auction) => {
+  const format = String(
+    auction?.auctionFormat || auction?.format || "LIVE_BIDDING",
+  ).toUpperCase();
+
+  if (format === "SNAKE_DRAFT" || format === "DRAFT") {
+    return "Snake Draft";
+  }
+
+  if (
+    format === "DIRECT_SELECTION" ||
+    format === "DIRECT" ||
+    format === "FIXED_PRICE"
+  ) {
+    return "Direct Selection";
+  }
+
+  return "Live Bidding";
+};
+
+const isFixedPriceAuction = (auction) => {
+  const format = String(
+    auction?.auctionFormat || auction?.format || "",
+  ).toUpperCase();
+
+  return ["DIRECT_SELECTION", "DIRECT", "FIXED_PRICE"].includes(format);
+};
 
 function StatusPill({ status }) {
   const running = status === "RUNNING";
@@ -63,6 +101,17 @@ function StatusPill({ status }) {
         }`}
       />
       {running ? "LIVE NOW" : status || "WAITING"}
+    </span>
+  );
+}
+
+function AuctionFormatPill({ auction }) {
+  const fixedPrice = isFixedPriceAuction(auction);
+
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1.5 text-xs font-bold text-lime-200">
+      {fixedPrice ? <IndianRupee size={13} /> : <Activity size={13} />}
+      {getAuctionFormat(auction)}
     </span>
   );
 }
@@ -103,6 +152,8 @@ function ScheduledAuction({ scheduledAt }) {
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
+    if (!scheduledAt) return undefined;
+
     const update = () => {
       setRemaining(
         Math.max(
@@ -181,8 +232,162 @@ function ScheduledAuction({ scheduledAt }) {
   );
 }
 
+function PlayerCard({
+  player,
+  auction,
+  secondsLeft,
+  running,
+  paused,
+  timerUrgent,
+}) {
+  const fixedPrice = isFixedPriceAuction(auction);
+  const selectionPrice = Number(auction?.selectionPrice || 0);
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b1727]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
+        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/45">
+          <Activity size={15} className="text-lime-300" />
+          On the auction block
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <AuctionFormatPill auction={auction} />
+
+          <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-200">
+            {player.category || "PLAYER"}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid gap-7 p-5 sm:p-8 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-center">
+        <div className="mx-auto w-full max-w-[300px]">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#152b40] to-[#07111f]">
+            {player.photo ? (
+              <img
+                src={player.photo}
+                alt={player.fullName || "Auction player"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center">
+                <div className="grid h-32 w-32 place-items-center rounded-full border border-lime-300/20 bg-lime-300/10 text-4xl font-black text-lime-200">
+                  {getPlayerInitials(player.fullName)}
+                </div>
+
+                <span className="mt-5 text-[10px] font-black uppercase tracking-[0.25em] text-white/30">
+                  Player profile
+                </span>
+              </div>
+            )}
+
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-lime-200">
+                {player.category || "Registered Player"}
+              </p>
+
+              <p className="mt-1 text-xl font-black">{player.fullName}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-lime-300">
+            Current player
+          </p>
+
+          <h2 className="mt-3 break-words text-3xl font-black sm:text-4xl">
+            {player.fullName}
+          </h2>
+
+          <p className="mt-2 text-sm capitalize text-white/45">
+            {String(player.role || "Player").replaceAll("_", " ")}
+          </p>
+
+          <div className="mt-7 rounded-2xl border border-lime-300/15 bg-[#071321] p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+              {fixedPrice ? "Fixed selection price" : "Current highest bid"}
+            </p>
+
+            <p className="mt-2 break-words text-4xl font-black tabular-nums text-lime-300 sm:text-5xl">
+              {fixedPrice
+                ? formatSelectionPrice(selectionPrice)
+                : formatPoints(auction?.currentBid)}
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
+              <span className="text-xs text-white/40">
+                {fixedPrice ? "Selection team" : "Leading team"}
+              </span>
+
+              <span className="text-sm font-extrabold text-white">
+                {auction?.highestBidTeam?.name ||
+                  auction?.selectedTeam?.name ||
+                  auction?.winningTeam?.name ||
+                  "No team selected yet"}
+              </span>
+            </div>
+          </div>
+
+          {fixedPrice && (
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
+              <IndianRupee
+                size={18}
+                className="mt-0.5 shrink-0 text-emerald-300"
+              />
+
+              <div>
+                <p className="text-sm font-bold text-emerald-200">
+                  Fixed-price selection
+                </p>
+                <p className="mt-1 text-xs leading-5 text-white/45">
+                  The displayed amount is the configured selection price. The
+                  team purse is updated by the server when the selection is
+                  confirmed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                <Clock3 size={14} />
+                Time remaining
+              </div>
+
+              <p
+                className={`mt-1 text-4xl font-black tabular-nums ${
+                  timerUrgent ? "text-red-400" : "text-white"
+                }`}
+              >
+                {running || paused ? formatClock(secondsLeft) : "--:--"}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <span className="text-xs text-white/35">Auction</span>
+
+              <p className="mt-1 text-sm font-bold">
+                {running
+                  ? "Bidding open"
+                  : paused && secondsLeft > 0
+                    ? "Auction paused"
+                    : paused
+                      ? "Bidding time expired"
+                      : "Waiting for next player"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LiveAuction() {
   const { auctionId } = useParams();
+
   const [clockNow, setClockNow] = useState(Date.now());
   const [auction, setAuction] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -190,9 +395,8 @@ export default function LiveAuction() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadAuction = async () => {
+  const loadAuction = useCallback(async () => {
     try {
-      setError("");
       if (!auctionId) {
         setError("Auction ID is missing from the public auction URL.");
         setLoading(false);
@@ -202,6 +406,7 @@ export default function LiveAuction() {
       const { data } = await api.get(`/auction/public/${auctionId}/state`);
 
       setAuction(data?.auction || data?.state || data);
+      setError("");
     } catch (err) {
       setError(
         err?.response?.data?.message ||
@@ -210,29 +415,16 @@ export default function LiveAuction() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (!auction?.scheduledAt) return;
-
-    const scheduledTime = new Date(auction.scheduledAt).getTime();
-
-    if (scheduledTime <= Date.now()) return;
-
-    const interval = window.setInterval(() => {
-      setClockNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(interval);
-  }, [auction?.scheduledAt]);
+  }, [auctionId]);
 
   useEffect(() => {
     loadAuction();
 
-    // Public viewers connect without a login token. If a token exists, it is
-    // sent optionally; server-side socket middleware must allow anonymous reads.
+    // Public viewers connect without a login token.
+    // If a token exists, it is sent optionally.
     const token =
       typeof window !== "undefined" ? localStorage.getItem("sacl_token") : null;
+
     const socket = io(SOCKET_URL, {
       transports: ["websocket", "polling"],
       auth: token ? { token } : {},
@@ -255,8 +447,10 @@ export default function LiveAuction() {
         }
       });
     });
+
     socket.on("disconnect", () => setConnected(false));
     socket.on("connect_error", () => setConnected(false));
+
     socket.on("auction:state", (nextState) => {
       if (nextState) {
         setAuction(nextState?.auction || nextState?.state || nextState);
@@ -265,7 +459,7 @@ export default function LiveAuction() {
       }
     });
 
-    // Recovery path for a dropped socket or a proxy that delays socket events.
+    // Recovery path for dropped socket connections.
     const refreshId = window.setInterval(loadAuction, 15000);
 
     return () => {
@@ -273,7 +467,21 @@ export default function LiveAuction() {
       socket.emit("auction:leave", { auctionId });
       socket.disconnect();
     };
-  }, [auctionId]);
+  }, [auctionId, loadAuction]);
+
+  useEffect(() => {
+    if (!auction?.scheduledAt) return undefined;
+
+    const scheduledTime = new Date(auction.scheduledAt).getTime();
+
+    if (scheduledTime <= Date.now()) return undefined;
+
+    const interval = window.setInterval(() => {
+      setClockNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [auction?.scheduledAt]);
 
   useEffect(() => {
     if (auction?.status === "PAUSED") {
@@ -303,10 +511,12 @@ export default function LiveAuction() {
   }, [auction?.endsAt, auction?.status, auction?.pausedRemainingMs]);
 
   const player = auction?.currentPlayer;
+
   const bids = useMemo(
     () => [...(auction?.bids || [])].reverse(),
     [auction?.bids],
   );
+
   const running = auction?.status === "RUNNING";
   const paused = auction?.status === "PAUSED";
 
@@ -318,13 +528,16 @@ export default function LiveAuction() {
     scheduledAt &&
     scheduledAt.getTime() > clockNow &&
     auction?.status !== "COMPLETED";
+
   const timerUrgent = running && secondsLeft <= 10;
+  const fixedPrice = isFixedPriceAuction(auction);
 
   if (loading && !auction) {
     return (
       <main className="min-h-screen bg-[#050b16] px-4 py-10 text-white">
         <div className="mx-auto max-w-7xl animate-pulse space-y-5">
           <div className="h-10 w-64 rounded-xl bg-white/10" />
+
           <div className="grid gap-5 lg:grid-cols-[1fr_350px]">
             <div className="h-[520px] rounded-3xl bg-white/5" />
             <div className="h-[520px] rounded-3xl bg-white/5" />
@@ -343,13 +556,21 @@ export default function LiveAuction() {
               <Radio size={15} />
               SACL • Public Broadcast
             </div>
+
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
               Live Player Auction
             </h1>
+
             <p className="mt-2 text-sm text-white/45">
               Watch every bid and auction update in real time. No login
               required.
             </p>
+
+            {auction && (
+              <div className="mt-3">
+                <AuctionFormatPill auction={auction} />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -359,9 +580,12 @@ export default function LiveAuction() {
               ) : (
                 <WifiOff size={14} className="text-amber-300" />
               )}
+
               {connected ? "Live connection" : "Reconnecting"}
             </div>
+
             <StatusPill status={auction?.status || "CONNECTING"} />
+
             <button
               type="button"
               onClick={loadAuction}
@@ -376,6 +600,7 @@ export default function LiveAuction() {
         {error && (
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             <span>{error}</span>
+
             <button
               type="button"
               onClick={loadAuction}
@@ -391,107 +616,14 @@ export default function LiveAuction() {
             {beforeSchedule ? (
               <ScheduledAuction scheduledAt={scheduledAt} />
             ) : player ? (
-              <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b1727]">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
-                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white/45">
-                    <Activity size={15} className="text-lime-300" />
-                    On the auction block
-                  </div>
-                  <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-200">
-                    {player.category || "PLAYER"}
-                  </span>
-                </div>
-
-                <div className="grid gap-7 p-5 sm:p-8 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-center">
-                  <div className="mx-auto w-full max-w-[300px]">
-                    <div className="relative aspect-[4/5] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#152b40] to-[#07111f]">
-                      {player.photo ? (
-                        <img
-                          src={player.photo}
-                          alt={player.fullName || "Auction player"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full flex-col items-center justify-center">
-                          <div className="grid h-32 w-32 place-items-center rounded-full border border-lime-300/20 bg-lime-300/10 text-4xl font-black text-lime-200">
-                            {getPlayerInitials(player.fullName)}
-                          </div>
-                          <span className="mt-5 text-[10px] font-black uppercase tracking-[0.25em] text-white/30">
-                            Player profile
-                          </span>
-                        </div>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5">
-                        <p className="text-xs font-bold uppercase tracking-widest text-lime-200">
-                          {player.category || "Registered Player"}
-                        </p>
-                        <p className="mt-1 text-xl font-black">
-                          {player.fullName}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-lime-300">
-                      Current player
-                    </p>
-                    <h2 className="mt-3 break-words text-3xl font-black sm:text-4xl">
-                      {player.fullName}
-                    </h2>
-                    <p className="mt-2 text-sm capitalize text-white/45">
-                      {String(player.role || "Player").replaceAll("_", " ")}
-                    </p>
-
-                    <div className="mt-7 rounded-2xl border border-lime-300/15 bg-[#071321] p-5 sm:p-6">
-                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-                        Current highest bid
-                      </p>
-                      <p className="mt-2 break-words text-4xl font-black tabular-nums text-lime-300 sm:text-5xl">
-                        {formatPoints(auction?.currentBid)}
-                      </p>
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
-                        <span className="text-xs text-white/40">
-                          Leading team
-                        </span>
-                        <span className="text-sm font-extrabold text-white">
-                          {auction?.highestBidTeam?.name || "No bids yet"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <div>
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
-                          <Clock3 size={14} />
-                          Time remaining
-                        </div>
-                        <p
-                          className={`mt-1 text-4xl font-black tabular-nums ${
-                            timerUrgent ? "text-red-400" : "text-white"
-                          }`}
-                        >
-                          {running || paused
-                            ? formatClock(secondsLeft)
-                            : "--:--"}{" "}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs text-white/35">Auction</span>
-                        <p className="mt-1 text-sm font-bold">
-                          {running
-                            ? "Bidding open"
-                            : paused && secondsLeft > 0
-                              ? "Auction paused"
-                              : paused
-                                ? "Bidding time expired"
-                                : "Waiting for next player"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <PlayerCard
+                player={player}
+                auction={auction}
+                secondsLeft={secondsLeft}
+                running={running}
+                paused={paused}
+                timerUrgent={timerUrgent}
+              />
             ) : (
               <EmptyAuction status={auction?.status} />
             )}
@@ -501,40 +633,74 @@ export default function LiveAuction() {
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40">
                   Auction status
                 </p>
+
                 <div className="mt-2">
                   <StatusPill status={auction?.status || "WAITING"} />
                 </div>
               </div>
+
               <div className="rounded-2xl border border-white/10 bg-[#0b1727] p-4">
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40">
-                  Current bid
+                  {fixedPrice ? "Selection price" : "Current bid"}
                 </p>
+
                 <p className="mt-2 text-xl font-black text-lime-300">
-                  {formatPoints(auction?.currentBid)}
+                  {fixedPrice
+                    ? formatSelectionPrice(auction?.selectionPrice)
+                    : formatPoints(auction?.currentBid)}
                 </p>
               </div>
+
               <div className="rounded-2xl border border-white/10 bg-[#0b1727] p-4">
                 <p className="text-xs font-bold uppercase tracking-widest text-white/40">
-                  Bid count
+                  {fixedPrice ? "Auction format" : "Bid count"}
                 </p>
+
                 <p className="mt-2 text-xl font-black">
-                  {auction?.bids?.length || 0}
+                  {fixedPrice ? "Direct Selection" : auction?.bids?.length || 0}
                 </p>
               </div>
             </div>
+
+            {fixedPrice && (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
+                <CheckCircle2
+                  size={18}
+                  className="mt-0.5 shrink-0 text-emerald-300"
+                />
+
+                <div>
+                  <p className="text-sm font-bold text-emerald-200">
+                    Fixed-price selection mode
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-white/45">
+                    Players selected in this format use the configured fixed
+                    selection amount instead of competitive bidding. The backend
+                    is responsible for updating the team's remaining purse.
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           <aside className="min-w-0 space-y-5">
             <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b1727]">
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div>
-                  <h3 className="font-black">Live bid feed</h3>
+                  <h3 className="font-black">
+                    {fixedPrice ? "Selection activity" : "Live bid feed"}
+                  </h3>
+
                   <p className="mt-1 text-xs text-white/40">
-                    Latest bids for this player
+                    {fixedPrice
+                      ? "Latest auction activity"
+                      : "Latest bids for this player"}
                   </p>
                 </div>
+
                 <span className="rounded-lg bg-lime-300/10 px-2.5 py-1 text-xs font-black text-lime-200">
-                  {bids.length} BIDS
+                  {bids.length} {fixedPrice ? "ACTIVITY" : "BIDS"}
                 </span>
               </div>
 
@@ -542,7 +708,9 @@ export default function LiveAuction() {
                 <div className="max-h-[430px] divide-y divide-white/[0.06] overflow-y-auto">
                   {bids.map((bid, index) => (
                     <div
-                      key={`${bid.team?._id || bid.team?.name || "team"}-${bid.createdAt || index}-${index}`}
+                      key={`${
+                        bid.team?._id || bid.team?.name || "team"
+                      }-${bid.createdAt || index}-${index}`}
                       className={`flex items-center justify-between gap-3 px-5 py-4 ${
                         index === 0 ? "bg-lime-300/[0.06]" : ""
                       }`}
@@ -555,15 +723,20 @@ export default function LiveAuction() {
                             index + 1
                           )}
                         </div>
+
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-white">
                             {bid.team?.name || "Participating team"}
                           </p>
+
                           <p className="mt-1 text-[11px] text-white/35">
-                            {index === 0 ? "Highest bid" : "Bid placed"}
+                            {index === 0
+                              ? "Latest activity"
+                              : "Previous activity"}
                           </p>
                         </div>
                       </div>
+
                       <p className="shrink-0 text-sm font-black text-lime-200">
                         {formatPoints(bid.amount)}
                       </p>
@@ -575,11 +748,15 @@ export default function LiveAuction() {
                   <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.04] text-white/35">
                     <Users size={20} />
                   </div>
+
                   <p className="mt-3 text-sm font-bold text-white/70">
-                    No bids yet
+                    No {fixedPrice ? "activity" : "bids"} yet
                   </p>
+
                   <p className="mt-1 text-xs text-white/35">
-                    Bids will appear here as teams participate.
+                    {fixedPrice
+                      ? "Selection activity will appear here when provided by the server."
+                      : "Bids will appear here as teams participate."}
                   </p>
                 </div>
               )}
@@ -590,6 +767,7 @@ export default function LiveAuction() {
                 <Radio size={16} className="text-lime-300" />
                 Public viewing
               </div>
+
               <p className="mt-2 text-xs leading-5 text-white/45">
                 This is a read-only auction screen. Only authorized auction
                 operators and team owners can perform auction actions from their
