@@ -21,7 +21,14 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
-const tabs = ["Overview", "Player", "Team Owner", "Auctioneer", "Admin"];
+const tabs = [
+  "Overview",
+  "Player",
+  "Turf Cricket",
+  "Team Owner",
+  "Auctioneer",
+  "Admin",
+];
 
 const portalContent = {
   Overview: {
@@ -93,6 +100,38 @@ const portalContent = {
     ],
   },
 
+  "Turf Cricket": {
+    eyebrow: "TURF CRICKET",
+    title: "Play. Score. Compete.",
+    description:
+      "Create friendly cricket matches, track your performance and build your player statistics.",
+    cards: [
+      {
+        title: "Create Friendly Match",
+        description: "Organize a cricket match with your friends.",
+        icon: Trophy,
+        action: "Create Match",
+        to: "/friendly-matches/create",
+        color: "amber",
+      },
+      {
+        title: "My Matches",
+        description: "View your previous and upcoming matches.",
+        icon: CalendarDays,
+        action: "View Matches",
+        to: "/friendly-matches",
+        color: "blue",
+      },
+      {
+        title: "My Cricket Stats",
+        description: "Track your runs, wickets and career performance.",
+        icon: Target,
+        action: "View Statistics",
+        to: "/my-cricket-stats",
+        color: "green",
+      },
+    ],
+  },
   "Team Owner": {
     eyebrow: "TEAM OWNER PORTAL",
     title: "Build Your Team",
@@ -436,11 +475,18 @@ export default function Landing() {
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  handleGetStarted();
+
+                  if (user) {
+                    navigate("/quick-cricket");
+                  } else {
+                    navigate("/login", {
+                      state: { from: "/quick-cricket" },
+                    });
+                  }
                 }}
                 className="rounded-xl bg-[#17283e] p-3 font-bold text-white"
               >
-                Explore Portals
+                {user ? "🏏 Start Quick Match" : "🏏 Login & Play"}{" "}
               </button>
             </div>
           </div>
@@ -467,11 +513,20 @@ export default function Landing() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <button
-                onClick={handleGetStarted}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3.5 font-black text-slate-950 transition hover:bg-amber-300"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+
+                  if (user) {
+                    navigate("/quick-cricket");
+                  } else {
+                    navigate("/login", {
+                      state: { from: "/quick-cricket" },
+                    });
+                  }
+                }}
+                className="rounded-xl bg-[#17283e] p-3 font-bold text-white"
               >
-                Explore Portals
-                <ArrowRight size={18} />
+                {user ? "🏏 Start Quick Match" : "🏏 Login & Play"}{" "}
               </button>
 
               {user ? (
@@ -569,7 +624,7 @@ export default function Landing() {
                           ? "SCHEDULED"
                           : auction
                             ? "NOT STARTED"
-                            : "AUCTION NOT CREATED";
+                            : "";
 
                 const statusClass = isLive
                   ? "bg-red-400/15 text-red-300"
@@ -669,6 +724,33 @@ export default function Landing() {
           </div>
         </section>
 
+        <section className="mt-8 rounded-3xl border border-amber-400/20 bg-gradient-to-r from-[#302b1d] to-[#17283e] p-6 sm:p-8">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-amber-400">
+                WEKHILADI QUICK CRICKET
+              </p>
+
+              <h2 className="mt-3 text-2xl font-black sm:text-3xl">
+                Your Friends. Your Teams. Your Match.
+              </h2>
+
+              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                Create teams in seconds, add players by name and start scoring
+                friendly cricket matches. No tournament registration or fixed
+                squad size.
+              </p>
+            </div>
+
+            <Link
+              to={user ? "/quick-cricket" : "/login"}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 py-3.5 font-black text-slate-950 hover:bg-amber-300"
+            >
+              Start Playing
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+        </section>
         {/* Statistics */}
         {/* <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard

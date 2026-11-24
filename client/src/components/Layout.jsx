@@ -16,6 +16,7 @@ import {
   Gavel,
   Radio,
   LucideAxis3D,
+  Zap,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -82,6 +83,14 @@ const auctioneerLinks = [
   { to: "/profile", label: "My Profile", icon: UserRound },
 ];
 
+const quickCricketLinks = [
+  {
+    to: "/quick-cricket",
+    label: "Friendly Cricket",
+    icon: Zap,
+  },
+];
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -101,6 +110,7 @@ export default function Layout({ children }) {
                 ? scorerLinks
                 : playerLinks;
 
+  const allLinks = [...quickCricketLinks, ...links];
   const roleLabel = user?.role?.replaceAll("_", " ");
 
   return (
@@ -159,7 +169,7 @@ export default function Layout({ children }) {
           </p>
 
           <nav className="flex gap-2 overflow-x-auto md:flex-col">
-            {links.map(({ to, label, icon: Icon }) => (
+            {allLinks.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -180,9 +190,11 @@ export default function Layout({ children }) {
 
           {/* Sidebar Footer */}
           <div className="mt-6 hidden rounded-xl border border-[#293b55] bg-[#1b2d45]/60 p-3 md:block">
-            <p className="text-xs font-bold text-[#f4c34e]">SACL 2.0</p>
+            <p className="text-xs font-bold text-[#f4c34e]">WEKHILADI</p>
+
             <p className="mt-1 text-[11px] leading-relaxed text-[#a6b4c8]">
-              Cricket auction and tournament management
+              Tournament management, cricket auctions and quick friendly
+              matches.
             </p>
           </div>
         </aside>

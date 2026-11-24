@@ -29,6 +29,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 
 import contactRoutes from "./routes/contact.routes.js";
+import casualCricketRoutes from "./routes/casualCricketRoutes.js";
 
 // Socket.IO
 import { initializeAuctionSocket } from "./socket/auctionSocket.js";
@@ -119,6 +120,7 @@ app.use("/api/contact", contactRoutes);
 
 app.use("/api/auction-management", auctionManagementRoutes);
 app.use("/api/auction-formats", auctionFormatRoutes);
+app.use("/api/quick-cricket", casualCricketRoutes);
 
 // Error handling
 app.use(notFound);

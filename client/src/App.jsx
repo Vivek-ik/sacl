@@ -50,6 +50,9 @@ import ContactLeads from "./pages/ContactLeads";
 import LiveAuction from "./pages/LiveAuction";
 import Auction from "./pages/Auction";
 
+import QuickCricket from "./pages/QuickCricket";
+import CasualMatch from "./pages/CasualMatch";
+
 function Protected({ children, roles }) {
   const { user } = useAuth();
 
@@ -294,6 +297,23 @@ function AppRoutes() {
           <Layout>
             <Profile />
           </Layout>
+        }
+      />
+      {/* WeKhiladi Quick Cricket */}
+      <Route
+        path="/quick-cricket"
+        element={
+          <Protected>
+            <QuickCricket />
+          </Protected>
+        }
+      />
+      <Route
+        path="/quick-cricket/matches/:matchId"
+        element={
+          <Protected>
+            <CasualMatch />
+          </Protected>
         }
       />
       <Route path="/organization/register" element={<OrganizationRegister />} />
