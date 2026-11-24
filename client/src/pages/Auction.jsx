@@ -213,33 +213,70 @@ export default function Auction() {
   useEffect(() => {
     if (!auctionId) return;
 
-    // Join the existing authenticated auction room.
-    socket.emit("auction:join", { auctionId }, (response) => {
-      if (!response?.success) {
-        console.error("Unable to join auction room:", response?.message);
+    let mounted = true;
+
+    const socket = io(socketUrl, {
+      auth: {
+        token: localStorage.getItem("sacl_token"),
+      },
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("auction:state", (nextState) => {
+      if (!mounted || !nextState) return;
+
+      setState(nextState);
+      setBidding(false);
+
+      if (!nextState.currentPlayer) {
+        loadPlayers();
       }
     });
 
-    const handleDirectSelectionUpdate = (data) => {
-      if (String(data.auctionId) !== String(auctionId)) return;
+    socket.on("auction:notice", (data) => {
+      if (mounted) {
+        setNotice(data?.message || "");
+      }
+    });
 
-      console.log("Direct selection received:", data);
+    socket.on("connect_error", (error) => {
+      if (mounted) {
+        setNotice(`Connection error: ${error.message}`);
+      }
+    });
 
-      // Refresh available players.
-      fetchPlayers();
+    socket.on("connect", () => {
+      socket.emit("auction:join", { auctionId }, (response) => {
+        if (!mounted) return;
 
-      // Refresh Direct Selection state.
-      loadFormatState();
-    };
+        if (response?.success) {
+          setState(response.state);
+          setNotice("");
+        } else {
+          setNotice(response?.message || "Unable to join auction.");
+        }
+      });
+    });
 
-    socket.on("direct-selection:updated", handleDirectSelectionUpdate);
+    window.__saclSocket = socket;
+
+    Promise.all([loadAuctionState(), loadPlayers(), loadMyTeams()]).finally(
+      () => {
+        if (mounted) setLoading(false);
+      },
+    );
 
     return () => {
-      socket.off("direct-selection:updated", handleDirectSelectionUpdate);
+      mounted = false;
 
       socket.emit("auction:leave", { auctionId });
+      socket.disconnect();
+
+      if (window.__saclSocket === socket) {
+        delete window.__saclSocket;
+      }
     };
-  }, [auctionId]);
+  }, [auctionId, socketUrl, loadAuctionState, loadPlayers, loadMyTeams]);
 
   // --------------------------------------------------
   // REFRESH FORMAT STATE AFTER SOCKET UPDATES

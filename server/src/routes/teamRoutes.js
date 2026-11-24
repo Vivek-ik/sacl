@@ -18,6 +18,16 @@ router.get("/my-team", protect, async (req, res, next) => {
       owner: req.user.id,
     })
       .populate("owner", "name phone email")
+      .populate({
+        path: "squad",
+        select:
+          "fullName category role battingStyle bowlingStyle preferredJerseyNumber approvalStatus paymentStatus auctionStatus user",
+        populate: {
+          path: "user",
+          select: "name phone email",
+        },
+      })
+      .populate("tournament", "name season format startDate endDate venue")
       .lean();
 
     if (!team) {
@@ -27,8 +37,11 @@ router.get("/my-team", protect, async (req, res, next) => {
       });
     }
 
-    const players = await Player.find({
+    // Players who selected this team as their preferred team.
+    // These are registrations, not confirmed squad members.
+    const registrations = await Player.find({
       preferredTeam: team._id,
+      tournament: team.tournament?._id || team.tournament,
     })
       .select(
         "fullName category role battingStyle bowlingStyle preferredJerseyNumber approvalStatus paymentStatus createdAt user",
@@ -40,7 +53,9 @@ router.get("/my-team", protect, async (req, res, next) => {
     return res.json({
       success: true,
       team,
-      players,
+      squad: team.squad || [],
+      registrations,
+      tournament: team.tournament,
     });
   } catch (error) {
     next(error);
