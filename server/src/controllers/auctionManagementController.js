@@ -201,10 +201,12 @@ export async function createOrUpdateAuction(req, res, next) {
       scheduledAt = null,
       timerSeconds = 45,
       minimumReservePerSlot = 0,
-      auctionFormat = "LIVE_BIDDING",
+      auctionFormat,
       selectionPrice = 500,
     } = req.body;
 
+    console.log("auctionFormat", auctionFormat);
+    
     // Validate tournament and organization access.
     const tournament = await getTournamentForManager(req.user, tournamentId);
 
