@@ -64,7 +64,7 @@ export default function Team() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applications, setApplications] = useState([]);
-  const [tournamentExpanded, setTournamentExpanded] = useState(true);
+  const [tournamentExpanded, setTournamentExpanded] = useState(false);
   const loadTeam = useCallback(async () => {
     try {
       setLoading(true);

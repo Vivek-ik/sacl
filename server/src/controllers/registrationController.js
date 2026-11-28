@@ -2,6 +2,8 @@ import Player from "../models/Player.js";
 import Team from "../models/Team.js";
 import { AUCTION_RULES } from "../config/auctionRules.js";
 import Tournament from "../models/Tournament.js";
+import { sendMail } from "../config/mail.js";
+import User from "../models/User.js";
 
 export async function registerPlayer(req, res, next) {
   try {
@@ -76,6 +78,24 @@ export async function registerPlayer(req, res, next) {
       approvalStatus: "pending",
       registrationFeeStatus: "pending",
     });
+
+    const applicant = await User.findById(req.user._id).select("name email");
+
+    if (applicant?.email) {
+      sendMail({
+        to: applicant.email,
+        subject: "SACL 2.0 - Player application received",
+        text: `Hello ${applicant.name}, your player application for ${tournament.name} has been received. Your application is pending review.`,
+        html: `
+      <h2>Application Received</h2>
+      <p>Hello ${applicant.name},</p>
+      <p>Your player application for <strong>${tournament.name}</strong> has been received.</p>
+      <p>We will notify you when the organizer reviews your application.</p>
+    `,
+      }).catch((error) =>
+        console.error("Application email failed:", error.message),
+      );
+    }
 
     return res.status(201).json({
       success: true,

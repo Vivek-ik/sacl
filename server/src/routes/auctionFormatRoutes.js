@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.js";
+import Auction from "../models/Auction.js";
+
 import {
   initializeSnakeDraft,
   makeSnakeDraftPick,
-  makeDirectSelection,
   getDraftSnapshot,
   getDirectSelectionSnapshot,
+  submitDirectBids,
+  closeDirectSubmissions,
+  awardDirectPlayer,
 } from "../services/auctionFormatService.js";
 
 const router = Router();
@@ -28,31 +32,33 @@ function canManageAuction(user, auction) {
   );
 }
 
-import Auction from "../models/Auction.js";
-
 async function requireManager(req, res, next) {
   try {
     const auction = await Auction.findById(req.params.auctionId);
 
     if (!auction) {
-      return res.status(404).json({ message: "Auction not found." });
+      return res.status(404).json({
+        success: false,
+        message: "Auction not found.",
+      });
     }
 
     if (!canManageAuction(req.user, auction)) {
       return res.status(403).json({
+        success: false,
         message:
           "Only an organization admin or assigned auctioneer can do this.",
       });
     }
 
     req.auction = auction;
-    next();
+    return next();
   } catch (error) {
-    next(error);
+    return next(error);
   }
 }
 
-// Admin/auctioneer initializes the draft order.
+// Initialize Snake Draft.
 router.post(
   "/:auctionId/draft/initialize",
   protect,
@@ -64,24 +70,28 @@ router.post(
         getUserId(req.user),
       );
 
-      res.json({ success: true, ...result });
+      return res.json({
+        success: true,
+        message: "Snake Draft initialized successfully.",
+        ...result,
+      });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   },
 );
 
-// Current draft state.
+// Get Snake Draft state.
 router.get("/:auctionId/draft", protect, async (req, res, next) => {
   try {
     const result = await getDraftSnapshot(req.params.auctionId);
-    res.json({ success: true, ...result });
+    return res.json({ success: true, ...result });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
-// Team owner makes a Snake Draft pick.
+// Make Snake Draft pick.
 router.post("/:auctionId/draft/pick", protect, async (req, res, next) => {
   try {
     const { teamId, playerId } = req.body;
@@ -93,48 +103,130 @@ router.post("/:auctionId/draft/pick", protect, async (req, res, next) => {
       userId: getUserId(req.user),
     });
 
-    res.json({ success: true, ...result });
+    req.app
+      .get("io")
+      ?.to(`auction:${req.params.auctionId}`)
+      .emit("draft:pick-updated", {
+        auctionId: req.params.auctionId,
+        teamId,
+        playerId,
+      });
+
+    return res.json({
+      success: true,
+      message: "Player picked successfully.",
+      ...result,
+    });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
-// Team owner makes a Direct Selection.
-router.post("/:auctionId/direct/select", protect, async (req, res, next) => {
+// Get Direct Selection state.
+router.get("/:auctionId/direct", protect, async (req, res, next) => {
   try {
-    const { teamId, playerId } = req.body;
-    const { auctionId } = req.params;
+    const result = await getDirectSelectionSnapshot(
+      req.params.auctionId,
+      req.user,
+    );
 
-    // Save selection in database first.
-    const result = await makeDirectSelection({
-      auctionId,
-      teamId,
-      playerId,
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Submit sealed bids.
+router.post("/:auctionId/direct/submit", protect, async (req, res, next) => {
+  try {
+    const result = await submitDirectBids({
+      auctionId: req.params.auctionId,
+      teamId: req.body.teamId,
+      bids: req.body.bids,
       userId: getUserId(req.user),
     });
 
-    // Broadcast only after successful database update.
-    const io = req.app.get("io");
+    req.app
+      .get("io")
+      ?.to(`auction:${req.params.auctionId}`)
+      .emit("direct-submission:updated", {
+        auctionId: req.params.auctionId,
+        teamId: req.body.teamId,
+      });
 
-    io?.to(`auction:${String(auctionId)}`).emit("direct-selection:updated", {
-      auctionId,
-      playerId,
-      teamId,
+    return res.json({
+      success: true,
+      message: "Sealed bids submitted successfully.",
+      ...result,
     });
+  } catch (error) {
+    return next(error);
+  }
+});
 
-    res.json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-});
-// Direct Selection state.
-router.get("/:auctionId/direct", protect, async (req, res, next) => {
-  try {
-    const result = await getDirectSelectionSnapshot(req.params.auctionId);
-    res.json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-});
+// Close submissions.
+router.post(
+  "/:auctionId/direct/close",
+  protect,
+  requireManager,
+  async (req, res, next) => {
+    try {
+      const result = await closeDirectSubmissions(
+        req.params.auctionId,
+        getUserId(req.user),
+      );
+
+      req.app
+        .get("io")
+        ?.to(`auction:${req.params.auctionId}`)
+        .emit("direct-submissions:closed", {
+          auctionId: req.params.auctionId,
+        });
+
+      return res.json({
+        success: true,
+        message: "Submissions have been closed.",
+        ...result,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
+// Award player.
+router.post(
+  "/:auctionId/direct/award",
+  protect,
+  requireManager,
+  async (req, res, next) => {
+    try {
+      const result = await awardDirectPlayer({
+        auctionId: req.params.auctionId,
+        playerId: req.body.playerId,
+        teamId: req.body.teamId,
+        remarks: req.body.remarks,
+        userId: getUserId(req.user),
+      });
+
+      req.app
+        .get("io")
+        ?.to(`auction:${req.params.auctionId}`)
+        .emit("direct-award:updated", {
+          auctionId: req.params.auctionId,
+          playerId: req.body.playerId,
+          teamId: req.body.teamId,
+        });
+
+      return res.json({
+        success: true,
+        message: "Player awarded successfully.",
+        ...result,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
 
 export default router;
