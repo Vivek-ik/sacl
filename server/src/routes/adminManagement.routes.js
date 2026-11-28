@@ -5,6 +5,12 @@ import Team from "../models/Team.js";
 import Tournament from "../models/Tournament.js";
 import { protect, allowRoles } from "../middleware/auth.js";
 
+import {
+  sendPlayerApprovedEmail,
+  sendPlayerRejectedEmail,
+  sendTeamDecisionEmail,
+} from "../services/emailService.js";
+
 const router = Router();
 
 router.use(protect, allowRoles("admin", "super_admin", "org_admin"));
@@ -503,10 +509,11 @@ router.delete("/applications/:entity/:id", async (req, res, next) => {
 });
 
 // APPROVE OR REJECT APPLICATION
+
 router.patch("/applications/:entity/:id", async (req, res, next) => {
   try {
     const { entity, id } = req.params;
-    const { status } = req.body;
+    const { status, reason } = req.body;
 
     if (!["player", "team"].includes(entity) || !isValidId(id)) {
       return res.status(400).json({
@@ -523,7 +530,14 @@ router.patch("/applications/:entity/:id", async (req, res, next) => {
     }
 
     const Model = entity === "player" ? Player : Team;
-    const application = await Model.findById(id);
+
+    // Load applicant and tournament details for the email.
+    const application = await Model.findById(id)
+      .populate(
+        entity === "player" ? "user" : "primaryOwner",
+        "name email phone",
+      )
+      .populate("tournament", "name season startDate endDate venue");
 
     if (!application) {
       return res.status(404).json({
@@ -547,7 +561,9 @@ router.patch("/applications/:entity/:id", async (req, res, next) => {
     }
 
     if (entity === "team" && status === "approved") {
-      const tournament = await Tournament.findById(application.tournament);
+      const tournament = await Tournament.findById(
+        application.tournament?._id || application.tournament,
+      );
 
       if (!tournament) {
         return res.status(404).json({
@@ -557,7 +573,7 @@ router.patch("/applications/:entity/:id", async (req, res, next) => {
       }
 
       const approvedCount = await Team.countDocuments({
-        tournament: application.tournament,
+        tournament: tournament._id,
         approvalStatus: "approved",
       });
 
@@ -569,10 +585,56 @@ router.patch("/applications/:entity/:id", async (req, res, next) => {
       }
     }
 
+    // Save the decision first.
     application.approvalStatus = status;
     await application.save();
 
-    res.json({
+    // Send notification without failing the approval API
+    // if the SMTP server is temporarily unavailable.
+    const tournamentName =
+      application.tournament?.name || "Samrat Ashok Cricket League";
+
+    const applicant =
+      entity === "player" ? application.user : application.primaryOwner;
+
+    if (applicant?.email) {
+      let emailPromise;
+
+      if (entity === "player") {
+        emailPromise =
+          status === "approved"
+            ? sendPlayerApprovedEmail({
+                to: applicant.email,
+                name: applicant.name || application.fullName,
+                tournamentName,
+                category: application.category,
+              })
+            : sendPlayerRejectedEmail({
+                to: applicant.email,
+                name: applicant.name || application.fullName,
+                tournamentName,
+                reason: reason || "",
+              });
+      } else {
+        emailPromise = sendTeamDecisionEmail({
+          to: applicant.email,
+          ownerName: applicant.name,
+          teamName: application.name,
+          tournamentName,
+          approved: status === "approved",
+          reason: reason || "",
+        });
+      }
+
+      emailPromise.catch((error) => {
+        console.error(
+          `Failed to send ${entity} ${status} email:`,
+          error.message,
+        );
+      });
+    }
+
+    return res.json({
       success: true,
       message: `Application ${status} successfully`,
       application,

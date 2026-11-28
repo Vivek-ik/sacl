@@ -4,6 +4,8 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
 
+import DirectSelectionPanel from "../components/DirectSelectionPanel";
+
 const FORMAT_LABELS = {
   LIVE_BIDDING: "Live Open Bidding",
   SNAKE_DRAFT: "Snake Draft",
@@ -47,6 +49,8 @@ export default function Auction() {
     "super_admin",
     "admin",
     "org_admin",
+    // remove lateer
+    // "team_owner",
     "auctioneer",
   ].includes(user?.role);
 
@@ -597,16 +601,16 @@ export default function Auction() {
   // --------------------------------------------------
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="mx-auto w-full max-w-screen-2xl space-y-5 px-3 py-4 text-white sm:space-y-6 sm:px-5 sm:py-6 lg:px-8 lg:py-8">
       {/* HEADER */}
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-widest text-lime">
             Tournament auction room
           </p>
 
-          <h1 className="mt-1 text-3xl font-black">
+          <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
             {FORMAT_LABELS[auctionFormat] || "Player Auction"}
           </h1>
 
@@ -643,7 +647,7 @@ export default function Auction() {
       {/* NOTICE */}
 
       {notice && (
-        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-200">
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 sm:p-4 text-sm leading-relaxed text-amber-200">
           {notice}
         </div>
       )}
@@ -651,7 +655,7 @@ export default function Auction() {
       {/* TEAM OWNER PANEL */}
 
       {isTeamOwner && (
-        <section className="rounded-2xl border border-lime/20 bg-panel p-5">
+        <section className="rounded-2xl border border-lime/20 bg-panel p-4 sm:p-5 lg:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black">Your Team</h2>
@@ -682,14 +686,14 @@ export default function Auction() {
           )}
 
           {selectedTeam ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-pitch p-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+              <div className="rounded-xl bg-pitch p-3 sm:p-4">
                 <p className="text-xs text-emerald-100/50">Team</p>
 
                 <p className="mt-1 font-black">{selectedTeam.name}</p>
               </div>
 
-              <div className="rounded-xl bg-pitch p-4">
+              <div className="rounded-xl bg-pitch p-3 sm:p-4">
                 <p className="text-xs text-emerald-100/50">Remaining purse</p>
 
                 <p className="mt-1 text-xl font-black text-lime">
@@ -697,7 +701,7 @@ export default function Auction() {
                 </p>
               </div>
 
-              <div className="rounded-xl bg-pitch p-4">
+              <div className="rounded-xl bg-pitch p-3 sm:p-4">
                 <p className="text-xs text-emerald-100/50">Squad size</p>
 
                 <p className="mt-1 text-xl font-black">
@@ -722,11 +726,11 @@ export default function Auction() {
       {/* LIVE OPEN BIDDING */}
 
       {auctionFormat === "LIVE_BIDDING" && (
-        <div className="grid gap-5 xl:grid-cols-[1fr_350px]">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_350px]">
           {/* CURRENT PLAYER */}
 
-          <section className="rounded-3xl border border-white/10 bg-panel p-5 sm:p-8">
-            <div className="flex items-center justify-between gap-3">
+          <section className="rounded-2xl border border-white/10 bg-panel p-4 sm:rounded-3xl sm:p-6 lg:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs font-bold tracking-widest text-emerald-100/50">
                 CURRENT PLAYER
               </span>
@@ -736,7 +740,7 @@ export default function Auction() {
               </span>
             </div>
 
-            <div className="mt-8 text-center">
+            <div className="mt-6 text-center sm:mt-8">
               <div className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-lime/30 bg-lime/10 text-4xl">
                 {currentPlayer?.photo ? (
                   <img
@@ -761,7 +765,7 @@ export default function Auction() {
 
               {/* HIGHEST BID */}
 
-              <div className="mx-auto mt-8 max-w-md rounded-2xl bg-pitch p-6">
+              <div className="mx-auto mt-6 w-full max-w-md rounded-2xl bg-pitch p-4 sm:mt-8 sm:p-6">
                 <p className="text-xs uppercase tracking-widest text-emerald-100/40">
                   Highest bid
                 </p>
@@ -778,7 +782,7 @@ export default function Auction() {
 
               {/* TIMER */}
 
-              <div className="mt-8">
+              <div className="mt-6 sm:mt-8">
                 <p className="text-xs uppercase tracking-widest text-emerald-100/40">
                   Time remaining
                 </p>
@@ -818,7 +822,7 @@ export default function Auction() {
               {/* AUCTIONEER CONTROLS */}
 
               {canOperate && hasCurrentPlayer && (
-                <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-white/10 bg-pitch p-5">
+                <div className="mx-auto mt-6 w-full max-w-xl rounded-2xl border border-white/10 bg-pitch p-4 sm:mt-8 sm:p-5">
                   <h3 className="mb-4 text-left text-sm font-bold uppercase tracking-widest text-emerald-100/50">
                     Auction controls
                   </h3>
@@ -875,7 +879,7 @@ export default function Auction() {
               )}
 
               {canOperate && !hasCurrentPlayer && (
-                <div className="mx-auto mt-8 max-w-md rounded-xl border border-white/10 bg-pitch p-4">
+                <div className="mx-auto mt-6 w-full max-w-md rounded-xl border border-white/10 bg-pitch p-4 sm:mt-8">
                   <p className="font-bold text-lime">Ready for next player</p>
 
                   <p className="mt-1 text-sm text-emerald-100/50">
@@ -889,11 +893,11 @@ export default function Auction() {
 
           {/* RIGHT PANEL */}
 
-          <aside className="space-y-4">
+          <aside className="min-w-0 space-y-4">
             {/* TEAM OWNER BIDDING */}
 
             {isTeamOwner && selectedTeam && (
-              <div className="rounded-2xl border border-lime/20 bg-panel p-5">
+              <div className="rounded-2xl border border-lime/20 bg-panel p-4 sm:p-5 lg:p-6">
                 {isRunning && hasCurrentPlayer ? (
                   <>
                     <label className="text-xs font-semibold text-emerald-100/60">
@@ -942,8 +946,8 @@ export default function Auction() {
             {/* AVAILABLE PLAYERS */}
 
             {canOperate && (
-              <section className="rounded-2xl border border-white/10 bg-panel p-5">
-                <div className="flex items-center justify-between gap-3">
+              <section className="rounded-2xl border border-white/10 bg-panel p-4 sm:p-5 lg:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-black">Available Players</h3>
 
@@ -1025,13 +1029,12 @@ export default function Auction() {
       )}
 
       {/* SNAKE DRAFT AND DIRECT SELECTION */}
-
-      {["SNAKE_DRAFT", "DIRECT_SELECTION"].includes(auctionFormat) && (
-        <div className="grid gap-5 xl:grid-cols-[1fr_350px]">
-          <section className="space-y-5">
+      {auctionFormat === "SNAKE_DRAFT" && (
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_350px]">
+          <section className="min-w-0 space-y-4 sm:space-y-5">
             {/* FORMAT STATUS */}
 
-            <div className="rounded-3xl border border-lime/20 bg-panel p-6">
+            <div className="rounded-2xl border border-lime/20 bg-panel p-4 sm:rounded-3xl sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-lime">
@@ -1065,7 +1068,7 @@ export default function Auction() {
               </div>
 
               {auctionFormat === "SNAKE_DRAFT" && (
-                <div className="mt-6 rounded-2xl border border-white/10 bg-pitch p-5">
+                <div className="mt-5 rounded-2xl border border-white/10 bg-pitch p-4 sm:mt-6 sm:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs uppercase tracking-widest text-emerald-100/40">
@@ -1125,7 +1128,7 @@ export default function Auction() {
 
             {/* PLAYER LIST */}
 
-            <div className="rounded-2xl border border-white/10 bg-panel p-5">
+            <div className="rounded-2xl border border-white/10 bg-panel p-4 sm:p-5 lg:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-black">Available Players</h3>
@@ -1164,7 +1167,7 @@ export default function Auction() {
                 </p>
               )}
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:mt-5 sm:grid-cols-2">
                 {filteredPlayers.map((player) => {
                   const enoughPurse =
                     Number(selectedTeam?.purseRemaining || 0) >= selectionPrice;
@@ -1183,7 +1186,7 @@ export default function Auction() {
                   return (
                     <div
                       key={player._id}
-                      className="rounded-xl border border-white/10 bg-pitch p-4"
+                      className="rounded-xl border border-white/10 bg-pitch p-3 sm:p-4"
                     >
                       <div className="flex items-center gap-3">
                         {player.photo ? (
@@ -1259,9 +1262,9 @@ export default function Auction() {
 
           {/* RIGHT SIDE */}
 
-          <aside className="space-y-5">
+          <aside className="min-w-0 space-y-4 sm:space-y-5">
             {isTeamOwner && (
-              <section className="rounded-2xl border border-lime/20 bg-panel p-5">
+              <section className="rounded-2xl border border-lime/20 bg-panel p-4 sm:p-5 lg:p-6">
                 <h3 className="text-lg font-black">Team Purse</h3>
 
                 {selectedTeam ? (
@@ -1304,7 +1307,7 @@ export default function Auction() {
             {/* TEAM ORDER */}
 
             {auctionFormat === "SNAKE_DRAFT" && (
-              <section className="rounded-2xl border border-white/10 bg-panel p-5">
+              <section className="rounded-2xl border border-white/10 bg-panel p-4 sm:p-5 lg:p-6">
                 <h3 className="text-lg font-black">Draft Team Order</h3>
 
                 <div className="mt-4 space-y-2">
@@ -1344,14 +1347,14 @@ export default function Auction() {
 
             {/* SELECTION HISTORY */}
 
-            <section className="rounded-2xl border border-white/10 bg-panel p-5">
+            <section className="rounded-2xl border border-white/10 bg-panel p-4 sm:p-5 lg:p-6">
               <h3 className="text-lg font-black">Selection History</h3>
 
               <div className="mt-4 space-y-3">
                 {selectionHistory.map((selection, index) => (
                   <div
                     key={`${getId(selection.player)}-${index}`}
-                    className="rounded-xl bg-pitch p-3"
+                    className="rounded-xl bg-pitch p-3 sm:p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1389,10 +1392,23 @@ export default function Auction() {
         </div>
       )}
 
+      {auctionFormat === "DIRECT_SELECTION" && (
+        <DirectSelectionPanel
+          auctionId={auctionId}
+          formatState={formatState}
+          players={players}
+          teams={teams}
+          selectedTeam={selectedTeam}
+          isTeamOwner={isTeamOwner}
+          canOperate={canOperate}
+          onRefresh={loadFormatState}
+        />
+      )}
+
       {/* VIEWER INFO */}
 
       {!isTeamOwner && !canOperate && (
-        <div className="rounded-2xl border border-white/10 bg-panel p-5">
+        <div className="rounded-2xl border border-white/10 bg-panel p-4 sm:p-5 lg:p-6">
           <h3 className="font-bold">Auction viewer</h3>
 
           <p className="mt-2 text-sm leading-relaxed text-emerald-100/50">

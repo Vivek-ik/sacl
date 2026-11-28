@@ -52,6 +52,7 @@ import Auction from "./pages/Auction";
 
 import QuickCricket from "./pages/QuickCricket";
 import CasualMatch from "./pages/CasualMatch";
+import { Toaster } from "react-hot-toast";
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
@@ -337,6 +338,30 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#171717",
+            color: "#fff",
+            border: "1px solid #333",
+          },
+          success: {
+            iconTheme: {
+              primary: "#84cc16",
+              secondary: "#171717",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#171717",
+            },
+          },
+        }}
+      />
     </AuthProvider>
   );
 }

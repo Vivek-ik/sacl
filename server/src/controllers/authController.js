@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { signToken } from "../utils/token.js";
 
+import { sendAccountWelcomeEmail } from "../services/emailService.js";
+
 export async function register(req, res, next) {
   try {
     const { name, email, password, phone } = req.body;
@@ -67,6 +69,16 @@ export async function register(req, res, next) {
       password: await bcrypt.hash(password, 12),
       role,
     });
+
+    if (user.email) {
+      sendAccountWelcomeEmail({
+        to: user.email,
+        name: user.name,
+        role: user.role,
+      }).catch((error) => {
+        console.error("Welcome email failed:", error.message);
+      });
+    }
 
     return res.status(201).json({
       success: true,

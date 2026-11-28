@@ -5,6 +5,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
+import { verifyMailConnection } from "./config/mail.js";
+
 import { connectDB } from "./config/db.js";
 
 import authRoutes from "./routes/authRoutes.js";
@@ -81,6 +83,10 @@ app.use(
     limit: 300,
   }),
 );
+
+verifyMailConnection().catch((error) => {
+  console.error("SMTP connection failed:", error.message);
+});
 
 // Health check
 app.get("/api/health", (req, res) => {
